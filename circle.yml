@@ -1,0 +1,12 @@
+machine:
+  post:
+  - sudo pip install -U pip
+
+dependencies:
+  pre:
+  - pip install flake8 mock coverage pyfakefs httmock
+
+test:
+  override:
+  - tox
+  - cp -R cover/ $CIRCLE_ARTIFACTS
