@@ -90,7 +90,7 @@ class MetricForwarder(threading.Thread):
         Check to see if we should send the
         current batch.
         True if timeout is > 10 or batch
-        size is reached. 
+        size is reached.
         '''
         now = time.time()
         if (now - self.batch_time) > self.batch_timeout:
@@ -123,10 +123,11 @@ class MetricForwarder(threading.Thread):
     def send_data(self):
         try:
             req = self.request_session.post(self.url,
-                                          data=self.batch,
-                                          stream=False)
+                                            data=self.batch,
+                                            stream=False)
             if req.status_code == 429:
-                logging.info("Metric forwarding limits hit, please contact support.")
+                logging.info("Metric forwarding limits hit \
+                             please contact support.")
         except Exception as e:
             logging.error("Metric forwarding exception was %s", e)
             return False
