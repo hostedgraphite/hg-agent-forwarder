@@ -79,11 +79,11 @@ class MetricForwarder(threading.Thread):
             ts = data.timestamp
         except AttributeError:
             # somehow, this dp is invalid, pass it by.
-            return True
-
-        metric_str = "%s %s %s" % (metric, value, ts)
-        self.batch = "%s\n%s" % (self.batch, metric_str)
-        self.batch_size += 1
+            pass
+        else:
+            metric_str = "%s %s %s" % (metric, value, ts)
+            self.batch = "%s\n%s" % (self.batch, metric_str)
+            self.batch_size += 1
 
     def should_send_batch(self):
         '''
