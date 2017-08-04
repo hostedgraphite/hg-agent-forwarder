@@ -111,6 +111,10 @@ class MockedUdpRecvSocket(object):
                                       name, value)
 
 
+class Resp:
+    status_code = 200
+
+
 class FakeSession:
     def __init__(self, *args, **kwargs):
         self.connections = {}
@@ -128,7 +132,7 @@ class FakeSession:
         elif self.should_fail and self.is_called:
             pass
         self.metrics_posted.append(data)
-        return True
+        return Resp()
 
 
 class FakeSpool:
