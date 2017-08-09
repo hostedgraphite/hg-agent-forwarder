@@ -32,7 +32,6 @@ class MetricForwarder(threading.Thread):
         self.spool_reader = SpoolReader('/var/opt/hg-agent/spool/*.spool.*',
                                         progresses=self.progress,
                                         shutdown=self.shutdown_e)
-
         self.progress_writer = ProgressWriter(self.config,
                                               self.spool_reader,
                                               self.shutdown_e)
@@ -43,6 +42,11 @@ class MetricForwarder(threading.Thread):
         self.backoff = False
         self.request_session = requests.Session()
         self.request_session.auth = HTTPBasicAuth(self.api_key, '')
+        self.batch = ""
+        self.batch_size = 0
+        self.batch_time = time.time()
+        self.batch_timeout = config.get('batch_timeout', 0.5)
+        self.max_batch_size = config.get('max_batch_size', 250)
 
     def run(self):
         while not self.shutdown_e.is_set():
@@ -50,20 +54,55 @@ class MetricForwarder(threading.Thread):
                 for line in self.spool_reader.read():
                     datapoint = Datapoint(line, self.api_key)
                     if datapoint.validate():
-                        self.forward(datapoint)
+                        self.extend_batch(datapoint)
                     else:
                         logging.error("Invalid line in spool.")
                         # invalid somehow, pass
                         continue
+                    if self.should_send_batch():
+                        self.forward()
                 if self.shutdown_e.is_set():
                     break
             except Exception as e:
                 continue
 
-    def forward(self, data):
+    def extend_batch(self, data):
+        '''
+        Add a metric to the current metric batch.
+        '''
+        if not self.batch_time:
+            self.batch_time = time.time()
+
+        try:
+            metric = data.metric
+            value = data.value
+            ts = data.timestamp
+        except AttributeError:
+            # somehow, this dp is invalid, pass it by.
+            pass
+        else:
+            metric_str = "%s %s %s" % (metric, value, ts)
+            self.batch = "%s\n%s" % (self.batch, metric_str)
+            self.batch_size += 1
+
+    def should_send_batch(self):
+        '''
+        Check to see if we should send the
+        current batch.
+        True if timeout is > 10 or batch
+        size is reached.
+        '''
+        now = time.time()
+        if (now - self.batch_time) > self.batch_timeout:
+            return True
+        elif self.batch_size > self.max_batch_size:
+            return True
+        return False
+
+    def forward(self):
         send_success = False
         while not send_success:
-            send_success = self.send_data(data)
+            send_success = self.send_data()
             if not send_success:
                 self.backoff = True
                 now = time.time()
@@ -81,22 +120,22 @@ class MetricForwarder(threading.Thread):
             self.backoff_sleep = 0
         return True
 
-    def send_data(self, data):
+    def send_data(self):
         try:
-            metric = data.metric
-            value = data.value
-            ts = data.timestamp
-        except AttributeError:
-            # somehow, this dp is invalid, pass it by.
-            return True
-
-        metric_str = "%s %s %s" % (metric, value, ts)
-        try:
-            self.request_session.post(self.url, data=metric_str,
-                                      stream=False)
+            req = self.request_session.post(self.url,
+                                            data=self.batch,
+                                            stream=False)
+            if req.status_code == 429:
+                logging.info("Metric forwarding limits hit \
+                             please contact support.")
         except Exception as e:
             logging.error("Metric forwarding exception was %s", e)
             return False
+        else:
+            # reset batch info now that send has succeeded.
+            self.batch = ""
+            self.batch_size = 0
+            self.batch_time = time.time()
         return True
 
     def shutdown(self):

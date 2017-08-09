@@ -5,7 +5,7 @@ from setuptools import setup, find_packages
 
 requirements = [
     'jsonschema==2.6.0',
-    'requests',
+    'requests==2.18.1',
     'rfc3987==1.3.7',  # For 'uri' format validation in jsonschema
     'supervisor==3.3.1',
     'PyYAML==3.12',
@@ -29,7 +29,7 @@ setup(
     long_description='Metric forwarder script for the Hosted Graphite agent.',
     author='Metricfire',
     author_email='maintainer@metricfire.com',
-    url='https://github.com/hostedgraphite/hg-agent-forwarder',
+    url='https://github.com/metricfire/hg-agent-forwarder',
     packages=find_packages(),
     package_data={},
     scripts=[],

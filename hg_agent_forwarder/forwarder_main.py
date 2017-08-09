@@ -13,6 +13,8 @@ def main():
     metric_forwarder = MetricForwarder(config)
     metric_forwarder.start()
     while not shutdown.is_set():
+        if metric_forwarder.should_send_batch():
+            metric_forwarder.forward()
         time.sleep(5)
 
     logging.debug('Caught shutdown event')
