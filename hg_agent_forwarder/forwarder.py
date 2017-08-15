@@ -25,7 +25,7 @@ class MetricForwarder(threading.Thread):
         self.daemon = True
 
         self.url = config.get('endpoint_url',
-                              'https://www.hostedgraphite.com/api/v1/sink')
+                              'https://agent_api.hostedgraphite.com/api/v1/sink')
         self.api_key = self.config.get('api_key')
         self.progress = self.load_progress_file()
         self.shutdown_e = threading.Event()
