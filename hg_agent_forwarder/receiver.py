@@ -24,9 +24,6 @@ class MetricReceiverUdp(threading.Thread):
         udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 32768000)
         bufsize = udp_socket.getsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF)
         udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        # 15 is being used as socket.SO_REUSEPORT
-        # to allow multiprocess port sharing
-        udp_socket.setsockopt(socket.SOL_SOCKET, 15, 1)
         udp_socket.settimeout(0.1)
         host = self.config.get('udp_host', 'localhost')
         port = int(self.config.get('udp_port', 2003))
