@@ -24,7 +24,7 @@ dependency_links = [
 
 setup(
     name='hg-agent-forwarder',
-    version='1.0.1',
+    version='1.0.2',
     description='Metric forwarder script for the Hosted Graphite agent.',
     long_description='Metric forwarder script for the Hosted Graphite agent.',
     author='Metricfire',
