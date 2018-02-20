@@ -126,6 +126,14 @@ class TestMetricReceiverTcp(TestReceiver):
         reciever_run_shutdown(tcp_receiver, 1)
         self.assertEqual(len(my_spool._spools), 1)
 
+    def test_tcp_crlf_dp(self):
+        tcp_receiver = MetricReceiverTcp(self.config)
+        my_spool = tcp_receiver.spool
+        tcp_receiver._sock.set_metric(self.test_metric, 20, lf='\r\n')
+        setup_tcp_receiver(tcp_receiver)
+        reciever_run_shutdown(tcp_receiver, 1)
+        self.assertEqual(len(my_spool._spools), 1)
+
     def test_tcp_multi_dp(self):
         tcp_receiver = MetricReceiverTcp(self.config)
         my_spool = tcp_receiver.spool
@@ -235,6 +243,14 @@ class TestMetricReceiverUdp(TestReceiver):
         self.assertEqual(len(my_spool.metrics), 1)
         self.assertEqual(my_spool.metrics[0].metric, "%s.foo.bar.baz" % API_KEY)
         self.assertEqual(my_spool.metrics[0].value, 20)
+
+    def test_udp_crlf_dp(self):
+        my_spool = FakeSpool()
+        udp_receiver = MetricReceiverUdp(self.config)
+        udp_receiver._sock.set_metric(self.test_metric, 20, '\r\n')
+        self.setup_udp_receiver(udp_receiver, my_spool)
+        reciever_run_shutdown(udp_receiver, 1)
+        self.assertEqual(len(my_spool.metrics), 1)
 
     def test_udp_multi_dp(self):
         my_spool = FakeSpool()

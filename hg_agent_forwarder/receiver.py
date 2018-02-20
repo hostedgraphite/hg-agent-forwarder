@@ -52,7 +52,7 @@ class MetricReceiverUdp(threading.Thread):
 
             if data is not None:
                 for line in data.strip("\n").split("\n"):
-                    line = line.strip()
+                    line = line.strip() # Handle CRLF as well as lone LF
                     try:
                         datapoint = Datapoint(line, self.api_key)
                         datapoint.key_strip()
@@ -169,6 +169,7 @@ class MetricReceiverTcp(threading.Thread):
                         # line we just read.
                         this_buf = self._buffers[fd]
                         (line, self._buffers[fd]) = this_buf.split("\n", 1)
+                        line = line.strip() # Handle CRLF as well as lone LF
                         try:
                             self._process(line)
                         except Exception, ex:
