@@ -181,7 +181,8 @@ class Spool:
     def lookup_spools(self):
         all_spools = []
         for f in glob.glob('/var/opt/hg-agent/spool/*.spool.*'):
-            all_spools.append(f.split('.')[2])
+            ts = int(f.split('.')[2])
+            all_spools.append(ts)
         return all_spools
 
     def delete_spool(self, ts):

@@ -200,7 +200,11 @@ class TestMetricReceiverTcp(TestReceiver):
         setup_tcp_receiver(tcp_receiver)
         time.sleep(1)
         reciever_run_shutdown(tcp_receiver, 1)
-        self.assertEqual(len(my_spool.lookup_spools()), 10)
+
+        all_spools = my_spool.lookup_spools()
+        for ts in all_spools:
+            self.assertIsInstance(ts, int)
+        self.assertEqual(len(all_spools), 10)
 
     @patch('hg_agent_forwarder.utils.fcntl.flock')
     def test_too_many_spools_rotate_bytes(self, fl):
