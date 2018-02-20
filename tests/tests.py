@@ -247,7 +247,7 @@ class TestMetricReceiverUdp(TestReceiver):
     def test_udp_crlf_dp(self):
         my_spool = FakeSpool()
         udp_receiver = MetricReceiverUdp(self.config)
-        udp_receiver._sock.set_metric(self.test_metric, 20, '\r\n')
+        udp_receiver._sock.set_metric(self.test_metric, 20, lf='\r\n')
         self.setup_udp_receiver(udp_receiver, my_spool)
         reciever_run_shutdown(udp_receiver, 1)
         self.assertEqual(len(my_spool.metrics), 1)
