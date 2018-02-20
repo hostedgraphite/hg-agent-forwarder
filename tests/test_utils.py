@@ -68,10 +68,10 @@ class MockedTcpRecvSocket(object):
     def bind(self, *args, **kwargs):
         pass
 
-    def set_metric(self, name, value):
+    def set_metric(self, name, value, lf='\n'):
         self.metric_count += 1
-        self.metric = "%s.%s %s\n" % (self._api_key,
-                                      name, value)
+        self.metric = "%s.%s %s%s" % (self._api_key,
+                                      name, value, lf)
 
 
 class MockedUdpRecvSocket(object):
@@ -105,10 +105,10 @@ class MockedUdpRecvSocket(object):
     def bind(self, *args, **kwargs):
         pass
 
-    def set_metric(self, name, value):
+    def set_metric(self, name, value, lf='\n'):
         self.metric_count += 1
-        self.metric = "%s.%s %s\n" % (self._api_key,
-                                      name, value)
+        self.metric = "%s.%s %s%s" % (self._api_key,
+                                      name, value, lf)
 
 
 class Resp:
