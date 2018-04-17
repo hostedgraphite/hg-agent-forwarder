@@ -28,7 +28,6 @@ class MetricForwarder(threading.Thread):
         # noticing "shutdown"). However, it's fine for this thread to exit with
         # the interpreter.
         self.daemon = True
-
         self.url = config.get('endpoint_url',
                               'https://agentapi.hostedgraphite.com/api/v1/sink')
         self.api_key = self.config.get('api_key')
@@ -57,6 +56,8 @@ class MetricForwarder(threading.Thread):
         while not self.shutdown_e.is_set():
             try:
                 for line in self.spool_reader.read():
+                    if self.shutdown_e.is_set():
+                        break
                     datapoint = Datapoint(line, self.api_key)
                     if datapoint.validate():
                         self.extend_batch(datapoint)
@@ -66,8 +67,6 @@ class MetricForwarder(threading.Thread):
                         continue
                     if self.should_send_batch():
                         self.forward()
-                if self.shutdown_e.is_set():
-                    break
             except Exception as e:
                 continue
 
@@ -169,10 +168,10 @@ class MetricForwarder(threading.Thread):
             if progressfile is not None:
                 progress = json.load(file(progressfile))
 
-        except (ValueError, IOError, OSError):
-            logging.exception(
-                'Error loading progress file on startup.'
-                'Spool files will be read from end'
+        except (ValueError, IOError, OSError) as e:
+            logging.error(
+                'Error loading progress file on startup; '
+                'spool files will be read from end: %s', e
             )
         return progress
 

@@ -86,6 +86,7 @@ class MockedUdpRecvSocket(object):
             time.sleep(0.01)
             self.metrics_sent += 1
             return self.metric, ""
+        return "", ""
 
     def close(self, *args, **kwargs):
         pass
@@ -113,6 +114,9 @@ class MockedUdpRecvSocket(object):
 
 class Resp:
     status_code = 200
+
+    def raise_for_status(self):
+        pass
 
 
 class FakeSession:

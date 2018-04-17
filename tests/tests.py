@@ -13,6 +13,7 @@ from hg_agent_forwarder.forwarder import MetricForwarder
 from hg_agent_forwarder.receiver import MetricReceiverUdp, MetricReceiverTcp
 
 
+
 class TestReceiver(fake_filesystem_unittest.TestCase):
     def setUp(self):
         self.setUpPyfakefs()
@@ -26,6 +27,14 @@ class TestReceiver(fake_filesystem_unittest.TestCase):
         self.test_metric = "foo.bar.baz"
 
 
+def shutdown(f):
+    # The forwarder is a daemon thread, but it can block on spool reads
+    # due to how multitail2 works (cf. MetricForwarder.shutdown), so we
+    # perform a "best effort" join here.
+    f.shutdown()
+    f.join(2)
+
+
 class TestMetricForwarder(fake_filesystem_unittest.TestCase):
     def setUp(self):
         self.setUpPyfakefs()
@@ -34,8 +43,9 @@ class TestMetricForwarder(fake_filesystem_unittest.TestCase):
         self.config = {'endpoint_url': "www.test.yolo",
                        'api_key': API_KEY,
                        'spoolglob': "/var/opt/hg-agent/spool/*.spool.*",
-                       'batch_timeout': 2,
-                       'max_batch_size': 10
+                       'batch_timeout': 0.5,
+                       'max_batch_size': 10,
+                       'interval': 1
                        }
 
     def test_processing_metrics(self):
@@ -44,10 +54,9 @@ class TestMetricForwarder(fake_filesystem_unittest.TestCase):
         forwarder.request_session = FakeSession()
         forwarder.start()
         while len(forwarder.request_session.metrics_posted) < 10:
-            if forwarder.should_send_batch():
-                forwarder.forward()
-            pass
-        forwarder.shutdown()
+            forwarder.forward()
+            time.sleep(0.1)
+        shutdown(forwarder)
         # we only have 10 valid metrics.
         self.assertEqual(len(forwarder.request_session.metrics_posted), 10)
         self.remove_spool(filename)
@@ -59,10 +68,9 @@ class TestMetricForwarder(fake_filesystem_unittest.TestCase):
         forwarder.request_session = FakeSession()
         forwarder.start()
         while len(forwarder.request_session.metrics_posted) < 10:
-            if forwarder.should_send_batch():
-                forwarder.forward()
-            pass
-        forwarder.shutdown()
+            forwarder.forward()
+            time.sleep(0.1)
+        shutdown(forwarder)
         # we only have 10 valid metrics.
         self.assertEqual(len(forwarder.request_session.metrics_posted), 10)
         self.remove_spool(filename)
@@ -77,10 +85,9 @@ class TestMetricForwarder(fake_filesystem_unittest.TestCase):
         forwarder.error_timestamp = time.time()
         forwarder.start()
         while len(forwarder.request_session.metrics_posted) < 10:
-            if forwarder.should_send_batch():
-                forwarder.forward()
+            forwarder.forward()
             time.sleep(0.1)
-        forwarder.shutdown()
+        shutdown(forwarder)
         metrics_posted = forwarder.request_session.metrics_posted
         invalid_posts = forwarder.request_session.invalid_posts
 
@@ -277,7 +284,8 @@ class TestEndtoEnd(fake_filesystem_unittest.TestCase):
                        "udp_port": 2003,
                        'endpoint_url': "www.test.yolo",
                        'spoolglob': "/var/opt/hg-agent/spool/*.spool.*",
-                       'batch_timeout': 1
+                       'batch_timeout': 1,
+                       'interval': 1
                        }
         self.test_metric = "foo.bar.baz"
         self.tcp_config_sock = patch('hg_agent_forwarder.receiver.socket')
@@ -306,7 +314,7 @@ class TestEndtoEnd(fake_filesystem_unittest.TestCase):
             time.sleep(0.01)
         tcp_receiver.shutdown()
         self.assertEqual(len(my_spool.lookup_spools()), 1)
-        forwarder.shutdown()
+        shutdown(forwarder)
         # we only have 1 valid metric.
         self.assertEqual(len(my_spool.lookup_spools()), 1)
         self.assertEqual(len(forwarder.request_session.metrics_posted), 1)
@@ -329,7 +337,7 @@ class TestEndtoEnd(fake_filesystem_unittest.TestCase):
             time.sleep(0.01)
         udp_receiver.shutdown()
         self.assertEqual(len(my_spool.lookup_spools()), 1)
-        forwarder.shutdown()
+        shutdown(forwarder)
         # we only have 1 valid metric.
         self.assertEqual(len(my_spool.lookup_spools()), 1)
         self.assertEqual(len(forwarder.request_session.metrics_posted), 1)
