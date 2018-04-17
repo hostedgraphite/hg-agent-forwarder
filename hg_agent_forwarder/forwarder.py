@@ -4,6 +4,7 @@ import os
 import logging
 import json
 import time
+import random
 import requests
 import multitail2
 import errno
@@ -40,10 +41,8 @@ class MetricForwarder(threading.Thread):
                                               self.spool_reader,
                                               self.shutdown_e)
         self.progress_writer.start()
-        self.error_timestamp = 0
-        self.backoff_timeout = 1
-        self.backoff_sleep = 0
-        self.backoff = False
+
+        self.retry_interval = random.randrange(200, 400)
         self.request_session = requests.Session()
         self.request_session.auth = HTTPBasicAuth(self.api_key, '')
         self.request_timeout = config.get('request_timeout', 10)
@@ -105,28 +104,22 @@ class MetricForwarder(threading.Thread):
         return False
 
     def forward(self):
-        send_success = False
-        while not send_success:
-            if self.shutdown_e.is_set():
-                break
+        not_processed = True
+        backoff = 0
+        while not_processed and not self.shutdown_e.is_set():
+            if self.send_data():
+                not_processed = False
+            else:
+                # Back off exponentially up to 6 times before levelling
+                # out. E.g. for a retry_interval of 300, that'll result
+                # in retries at 300, 600, 1200, 2400, 4800, 9600, 9600, ...
+                interval = (2**backoff) * self.retry_interval
+                if backoff < 5:
+                    backoff += 1
+                logging.error('Metric sending failed, retry in %s ms',
+                              interval)
+                time.sleep(interval / 1000.0)
 
-            send_success = self.send_data()
-            if not send_success:
-                self.backoff = True
-                now = time.time()
-                if (now - self.error_timestamp) < self.backoff_timeout:
-                    # if we've seen errors successively in a second,
-                    # log & sleep for a bit.
-                    self.backoff_sleep += 1
-                    logging.info("Metric sending failed, will try again "
-                                 "in %s seconds", self.backoff_sleep)
-                    time.sleep(self.backoff_sleep)
-                self.error_timestamp = now
-
-        if self.backoff:
-            self.backoff = False
-            self.backoff_sleep = 0
-        return True
 
     def send_data(self):
         try:

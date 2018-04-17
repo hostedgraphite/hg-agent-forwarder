@@ -86,7 +86,6 @@ class TestMetricForwarder(fake_filesystem_unittest.TestCase):
         forwarder = MetricForwarder(self.config, self.shutdown)
         forwarder.request_session = FakeSession()
         forwarder.request_session.should_fail = True
-        forwarder.error_timestamp = time.time()
         forwarder.start()
         while len(forwarder.request_session.metrics_posted) < 10:
             forwarder.forward()
@@ -96,10 +95,8 @@ class TestMetricForwarder(fake_filesystem_unittest.TestCase):
         metrics_posted = forwarder.request_session.metrics_posted
         invalid_posts = forwarder.request_session.invalid_posts
 
-        self.assertFalse(forwarder.backoff)
         self.assertTrue(forwarder.request_session.is_called)
         self.assertEqual(len(metrics_posted), 10)
-        self.assertEqual(forwarder.backoff_sleep, 0)
         self.assertEqual(len(invalid_posts), 1)
         self.assertIn(invalid_posts[0], metrics_posted)
         self.remove_spool(filename)
