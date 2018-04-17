@@ -128,7 +128,7 @@ class FakeSession:
         self.is_called = False
         self.invalid_posts = []
 
-    def post(self, url, data=None, stream=False):
+    def post(self, url, data=None, stream=False, timeout=None):
         if self.should_fail and not self.is_called:
             self.is_called = True
             self.invalid_posts.append(data)

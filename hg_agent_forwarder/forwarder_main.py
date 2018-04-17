@@ -11,16 +11,16 @@ def main():
     shutdown = create_shutdown_event()
     logging.info("Metric forwarder starting.")
 
-    metric_forwarder = MetricForwarder(config)
+    metric_forwarder = MetricForwarder(config, shutdown)
     metric_forwarder.start()
     while not shutdown.is_set():
         if metric_forwarder.should_send_batch():
             metric_forwarder.forward()
         time.sleep(5)
 
-    logging.debug('Caught shutdown event')
+    logging.info("Metric forwarder shutting down")
     metric_forwarder.shutdown()
-    logging.info("Metric forwarder shutdown.")
+    logging.info("Metric forwarder finished.")
 
 if __name__ == '__main__':
     main()

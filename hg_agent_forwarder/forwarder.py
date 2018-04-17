@@ -18,7 +18,7 @@ class MetricForwarder(threading.Thread):
     Forwards data over http, has a simple exponential
     backoff in case of connectivity issues.
     '''
-    def __init__(self, config, *args, **kwargs):
+    def __init__(self, config, shutdown_e, *args, **kwargs):
         super(MetricForwarder, self).__init__(*args, **kwargs)
         self.config = config
         self.name = "Metric Forwarder"
@@ -32,7 +32,7 @@ class MetricForwarder(threading.Thread):
                               'https://agentapi.hostedgraphite.com/api/v1/sink')
         self.api_key = self.config.get('api_key')
         self.progress = self.load_progress_file()
-        self.shutdown_e = threading.Event()
+        self.shutdown_e = shutdown_e
         self.spool_reader = SpoolReader('/var/opt/hg-agent/spool/*.spool.*',
                                         progresses=self.progress,
                                         shutdown=self.shutdown_e)
@@ -46,6 +46,7 @@ class MetricForwarder(threading.Thread):
         self.backoff = False
         self.request_session = requests.Session()
         self.request_session.auth = HTTPBasicAuth(self.api_key, '')
+        self.request_timeout = config.get('request_timeout', 10)
         self.batch = ""
         self.batch_size = 0
         self.batch_time = time.time()
@@ -117,8 +118,8 @@ class MetricForwarder(threading.Thread):
                     # if we've seen errors successively in a second,
                     # log & sleep for a bit.
                     self.backoff_sleep += 1
-                    logging.info("Metric sending failed, will try again \
-                                 in %s seconds", self.backoff_sleep)
+                    logging.info("Metric sending failed, will try again "
+                                 "in %s seconds", self.backoff_sleep)
                     time.sleep(self.backoff_sleep)
                 self.error_timestamp = now
 
@@ -131,7 +132,8 @@ class MetricForwarder(threading.Thread):
         try:
             req = self.request_session.post(self.url,
                                             data=self.batch,
-                                            stream=False)
+                                            stream=False,
+                                            timeout=self.request_timeout)
             if req.status_code == 429:
                 logging.info("Metric forwarding limits hit \
                              please contact support.")
@@ -150,14 +152,16 @@ class MetricForwarder(threading.Thread):
 
     def shutdown(self):
         '''Shut down this forwarder.
-        NB: called from outside the forwarder's thread of execution.'''
 
-        # Be polite: if we *can* shutdown (because multitail2 is not blocking),
-        # then do so. If not, as a daemon thread we'll exit shortly anyway.
-        self.shutdown_e.set()
+        Deals with the forwarder's progress thread: we want to be certain that
+        the progress thread has a chance to finish what it's doing if it is
+        mid-write, so we wait on it. As the forwarder itself is a daemon thread
+        (which *may* block reading spools via multitail2), it will exit once
+        everything else is done anyway.
 
-        # However, we want to be certain that the progress thread has a chance
-        # to finish what it's doing if it is mid-write, so we wait on it.
+        NB: called from outside the forwarder's thread of execution.
+        '''
+
         while self.progress_writer.is_alive():
             self.progress_writer.join(timeout=0.1)
             time.sleep(0.1)
