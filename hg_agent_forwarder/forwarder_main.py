@@ -9,6 +9,7 @@ def main():
     config = load_config('forwarder', str(args.config))
     init_log('hg-agent-forwarder', args.debug)
     shutdown = create_shutdown_event()
+    logging.info("Metric forwarder starting.")
 
     metric_forwarder = MetricForwarder(config)
     metric_forwarder.start()
@@ -18,14 +19,8 @@ def main():
         time.sleep(5)
 
     logging.debug('Caught shutdown event')
-
-    # Shutdown forwarder
-    while metric_forwarder.is_alive():
-        metric_forwarder.shutdown()
-        metric_forwarder.join(timeout=0.1)
-        time.sleep(0.1)
-
-    logging.info("Metric forwarder closed.")
+    metric_forwarder.shutdown()
+    logging.info("Metric forwarder shutdown.")
 
 if __name__ == '__main__':
     main()

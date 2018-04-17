@@ -22,6 +22,11 @@ class MetricForwarder(threading.Thread):
         super(MetricForwarder, self).__init__(*args, **kwargs)
         self.config = config
         self.name = "Metric Forwarder"
+
+        # Because multitail2 blocks on read, if there is no data being written
+        # to spool, we can end up with the spool reader blocking (and thus not
+        # noticing "shutdown"). However, it's fine for this thread to exit with
+        # the interpreter.
         self.daemon = True
 
         self.url = config.get('endpoint_url',
@@ -128,8 +133,11 @@ class MetricForwarder(threading.Thread):
             if req.status_code == 429:
                 logging.info("Metric forwarding limits hit \
                              please contact support.")
+
+            # Ensure exception info is logged for HTTP errors.
+            req.raise_for_status()
         except Exception as e:
-            logging.error("Metric forwarding exception was %s", e)
+            logging.error("Metric forwarding exception: %s", e)
             return False
         else:
             # reset batch info now that send has succeeded.
@@ -139,9 +147,18 @@ class MetricForwarder(threading.Thread):
         return True
 
     def shutdown(self):
+        '''Shut down this forwarder.
+        NB: called from outside the forwarder's thread of execution.'''
+
+        # Be polite: if we *can* shutdown (because multitail2 is not blocking),
+        # then do so. If not, as a daemon thread we'll exit shortly anyway.
         self.shutdown_e.set()
-        self.progress_writer.join(timeout=0.1)
-        self.join(timeout=0.1)
+
+        # However, we want to be certain that the progress thread has a chance
+        # to finish what it's doing if it is mid-write, so we wait on it.
+        while self.progress_writer.is_alive():
+            self.progress_writer.join(timeout=0.1)
+            time.sleep(0.1)
 
     def load_progress_file(self):
         progress_cfg = self.config.get('progress', {})
