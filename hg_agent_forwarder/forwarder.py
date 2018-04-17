@@ -106,6 +106,9 @@ class MetricForwarder(threading.Thread):
     def forward(self):
         send_success = False
         while not send_success:
+            if self.shutdown_e.is_set():
+                break
+
             send_success = self.send_data()
             if not send_success:
                 self.backoff = True
