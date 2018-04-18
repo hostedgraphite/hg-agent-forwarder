@@ -86,6 +86,7 @@ class MockedUdpRecvSocket(object):
             time.sleep(0.01)
             self.metrics_sent += 1
             return self.metric, ""
+        return "", ""
 
     def close(self, *args, **kwargs):
         pass
@@ -114,6 +115,9 @@ class MockedUdpRecvSocket(object):
 class Resp:
     status_code = 200
 
+    def raise_for_status(self):
+        pass
+
 
 class FakeSession:
     def __init__(self, *args, **kwargs):
@@ -124,7 +128,7 @@ class FakeSession:
         self.is_called = False
         self.invalid_posts = []
 
-    def post(self, url, data=None, stream=False):
+    def post(self, url, data=None, stream=False, timeout=None):
         if self.should_fail and not self.is_called:
             self.is_called = True
             self.invalid_posts.append(data)

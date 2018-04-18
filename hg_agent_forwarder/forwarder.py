@@ -4,6 +4,7 @@ import os
 import logging
 import json
 import time
+import random
 import requests
 import multitail2
 import errno
@@ -18,17 +19,21 @@ class MetricForwarder(threading.Thread):
     Forwards data over http, has a simple exponential
     backoff in case of connectivity issues.
     '''
-    def __init__(self, config, *args, **kwargs):
+    def __init__(self, config, shutdown_e, *args, **kwargs):
         super(MetricForwarder, self).__init__(*args, **kwargs)
         self.config = config
         self.name = "Metric Forwarder"
-        self.daemon = True
 
+        # Because multitail2 blocks on read, if there is no data being written
+        # to spool, we can end up with the spool reader blocking (and thus not
+        # noticing "shutdown"). However, it's fine for this thread to exit with
+        # the interpreter.
+        self.daemon = True
         self.url = config.get('endpoint_url',
                               'https://agentapi.hostedgraphite.com/api/v1/sink')
         self.api_key = self.config.get('api_key')
         self.progress = self.load_progress_file()
-        self.shutdown_e = threading.Event()
+        self.shutdown_e = shutdown_e
         self.spool_reader = SpoolReader('/var/opt/hg-agent/spool/*.spool.*',
                                         progresses=self.progress,
                                         shutdown=self.shutdown_e)
@@ -36,12 +41,11 @@ class MetricForwarder(threading.Thread):
                                               self.spool_reader,
                                               self.shutdown_e)
         self.progress_writer.start()
-        self.error_timestamp = 0
-        self.backoff_timeout = 1
-        self.backoff_sleep = 0
-        self.backoff = False
+
+        self.retry_interval = random.randrange(200, 400)
         self.request_session = requests.Session()
         self.request_session.auth = HTTPBasicAuth(self.api_key, '')
+        self.request_timeout = config.get('request_timeout', 10)
         self.batch = ""
         self.batch_size = 0
         self.batch_time = time.time()
@@ -52,6 +56,8 @@ class MetricForwarder(threading.Thread):
         while not self.shutdown_e.is_set():
             try:
                 for line in self.spool_reader.read():
+                    if self.shutdown_e.is_set():
+                        break
                     datapoint = Datapoint(line, self.api_key)
                     if datapoint.validate():
                         self.extend_batch(datapoint)
@@ -61,8 +67,6 @@ class MetricForwarder(threading.Thread):
                         continue
                     if self.should_send_batch():
                         self.forward()
-                if self.shutdown_e.is_set():
-                    break
             except Exception as e:
                 continue
 
@@ -100,36 +104,37 @@ class MetricForwarder(threading.Thread):
         return False
 
     def forward(self):
-        send_success = False
-        while not send_success:
-            send_success = self.send_data()
-            if not send_success:
-                self.backoff = True
-                now = time.time()
-                if (now - self.error_timestamp) < self.backoff_timeout:
-                    # if we've seen errors successively in a second,
-                    # log & sleep for a bit.
-                    self.backoff_sleep += 1
-                    logging.info("Metric sending failed, will try again \
-                                 in %s seconds", self.backoff_sleep)
-                    time.sleep(self.backoff_sleep)
-                self.error_timestamp = now
+        not_processed = True
+        backoff = 0
+        while not_processed and not self.shutdown_e.is_set():
+            if self.send_data():
+                not_processed = False
+            else:
+                # Back off exponentially up to 6 times before levelling
+                # out. E.g. for a retry_interval of 300, that'll result
+                # in retries at 300, 600, 1200, 2400, 4800, 9600, 9600, ...
+                interval = (2**backoff) * self.retry_interval
+                if backoff < 5:
+                    backoff += 1
+                logging.error('Metric sending failed, retry in %s ms',
+                              interval)
+                time.sleep(interval / 1000.0)
 
-        if self.backoff:
-            self.backoff = False
-            self.backoff_sleep = 0
-        return True
 
     def send_data(self):
         try:
             req = self.request_session.post(self.url,
                                             data=self.batch,
-                                            stream=False)
+                                            stream=False,
+                                            timeout=self.request_timeout)
             if req.status_code == 429:
                 logging.info("Metric forwarding limits hit \
                              please contact support.")
+
+            # Ensure exception info is logged for HTTP errors.
+            req.raise_for_status()
         except Exception as e:
-            logging.error("Metric forwarding exception was %s", e)
+            logging.error("Metric forwarding exception: %s", e)
             return False
         else:
             # reset batch info now that send has succeeded.
@@ -139,9 +144,20 @@ class MetricForwarder(threading.Thread):
         return True
 
     def shutdown(self):
-        self.shutdown_e.set()
-        self.progress_writer.join(timeout=0.1)
-        self.join(timeout=0.1)
+        '''Shut down this forwarder.
+
+        Deals with the forwarder's progress thread: we want to be certain that
+        the progress thread has a chance to finish what it's doing if it is
+        mid-write, so we wait on it. As the forwarder itself is a daemon thread
+        (which *may* block reading spools via multitail2), it will exit once
+        everything else is done anyway.
+
+        NB: called from outside the forwarder's thread of execution.
+        '''
+
+        while self.progress_writer.is_alive():
+            self.progress_writer.join(timeout=0.1)
+            time.sleep(0.1)
 
     def load_progress_file(self):
         progress_cfg = self.config.get('progress', {})
@@ -152,10 +168,10 @@ class MetricForwarder(threading.Thread):
             if progressfile is not None:
                 progress = json.load(file(progressfile))
 
-        except (ValueError, IOError, OSError):
-            logging.exception(
-                'Error loading progress file on startup.'
-                'Spool files will be read from end'
+        except (ValueError, IOError, OSError) as e:
+            logging.error(
+                'Error loading progress file on startup; '
+                'spool files will be read from end: %s', e
             )
         return progress
 

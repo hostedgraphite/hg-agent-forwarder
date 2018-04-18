@@ -195,7 +195,7 @@ class Spool:
             pass
 
         for f in glob.glob('/var/opt/hg-agent/spool/*.spool.%s' % ts):
-            logging.info("Deleteing spool file %s" % f)
+            logging.info("Deleting spool file %s" % f)
             try:
                 os.remove(f)
                 self._all_spools.remove(ts)

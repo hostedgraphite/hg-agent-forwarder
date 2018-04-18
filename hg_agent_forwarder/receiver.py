@@ -48,9 +48,9 @@ class MetricReceiverUdp(threading.Thread):
                 if num not in [4, 11]:
                     raise
             except TypeError as e:
-                logging.error("UDP receiver error was %s", e)
+                logging.error("UDP receiver error: %s", e)
 
-            if data is not None:
+            if data:
                 for line in data.strip("\n").split("\n"):
                     line = line.strip() # Handle CRLF as well as lone LF
                     try:
