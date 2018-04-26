@@ -153,7 +153,7 @@ class TestMetricForwarder(fake_filesystem_unittest.TestCase):
     def remove_spool(self, filename):
         os.remove(filename)
 
-    def tearDown(self):
+    def tearDown(self): 
         # ensure we clean up spools even if a test fails.
         for f in glob.glob('tests/test_spool.spool.*'):
             os.remove(f)
