@@ -96,8 +96,6 @@ class MetricForwarder(threading.Thread):
         True if timeout is > 10 or batch
         size is reached.
         '''
-        print self.batch_size
-
         now = time.time()
         if (now - self.batch_time) > self.batch_timeout and self.spool_reader.cotentCounter:
             return True
@@ -196,7 +194,7 @@ class SpoolReader(object):
             if counter > 0:
                 return True
             try:
-                print "HERE %s " % line
+                #print "HERE %s " % line
                 content+=1
             except ValueError:
                 logging.error('Could not parse line: %s', line)

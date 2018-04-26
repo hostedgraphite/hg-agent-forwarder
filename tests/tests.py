@@ -95,8 +95,8 @@ class TestMetricForwarder(fake_filesystem_unittest.TestCase):
         shutdown(forwarder)
         metrics_posted = forwarder.request_session.metrics_posted
         invalid_posts = forwarder.request_session.invalid_posts
-        print "HERE %s : " % metrics_posted
-        print "also here %s : " % invalid_posts
+    #    print "HERE %s : " % metrics_posted
+        #print "also here %s : " % invalid_posts
         self.assertTrue(forwarder.request_session.is_called)
         self.assertEqual(len(metrics_posted), 10)
         self.assertEqual(len(invalid_posts), 1)
@@ -116,8 +116,8 @@ class TestMetricForwarder(fake_filesystem_unittest.TestCase):
         shutdown(forwarder)
         metrics_posted = forwarder.request_session.metrics_posted
         invalid_posts = forwarder.request_session.invalid_posts
-        print "HERE %s : " % metrics_posted
-        print "also here %s : " % invalid_posts
+        #print "HERE %s : " % metrics_posted
+        #print "also here %s : " % invalid_posts
         self.assertFalse(forwarder.request_session.is_called)
         self.assertEqual(len(metrics_posted), 0)
         self.assertEqual(len(invalid_posts), 0)
@@ -137,8 +137,8 @@ class TestMetricForwarder(fake_filesystem_unittest.TestCase):
         shutdown(forwarder)
         metrics_posted = forwarder.request_session.metrics_posted
         invalid_posts = forwarder.request_session.invalid_posts
-        print "HERE %s : " % metrics_posted
-        print "also here %s : " % invalid_posts
+        #print "HERE %s : " % metrics_posted
+        #print "also here invalid %s : " % invalid_posts
         self.assertFalse(forwarder.request_session.is_called)
         self.assertEqual(len(metrics_posted), 1)
         self.assertEqual(len(invalid_posts), 0)
@@ -153,7 +153,7 @@ class TestMetricForwarder(fake_filesystem_unittest.TestCase):
     def remove_spool(self, filename):
         os.remove(filename)
 
-    def tearDown(self): 
+    def tearDown(self):
         # ensure we clean up spools even if a test fails.
         for f in glob.glob('tests/test_spool.spool.*'):
             os.remove(f)

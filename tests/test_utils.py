@@ -135,7 +135,8 @@ class FakeSession:
     def post(self, url, data=None, stream=False, timeout=None):
         if self.should_fail and not self.is_called:
             self.is_called = True
-            self.invalid_posts.append(data)
+            for line in data.strip("\n").split("\n"):
+                self.invalid_posts.append(line)
             raise Exception
         elif self.should_fail and self.is_called:
             pass
