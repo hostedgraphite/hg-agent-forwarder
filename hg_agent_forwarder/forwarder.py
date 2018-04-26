@@ -96,8 +96,10 @@ class MetricForwarder(threading.Thread):
         True if timeout is > 10 or batch
         size is reached.
         '''
+        print self.batch_size
+
         now = time.time()
-        if (now - self.batch_time) > self.batch_timeout:
+        if (now - self.batch_time) > self.batch_timeout and self.spool_reader.cotentCounter:
             return True
         elif self.batch_size > self.max_batch_size:
             return True
@@ -186,6 +188,20 @@ class SpoolReader(object):
         self.data_reader = multitail2.MultiTail(spoolglob,
                                                 skip_to_end=False,
                                                 offsets=progresses)
+
+    def cotentCounter(self):
+        counter =0
+        for (_, _), line in self.data_reader:
+            line_byte_len = len(bytes(line))
+            if counter > 0:
+                return True
+            try:
+                print "HERE %s " % line
+                content+=1
+            except ValueError:
+                logging.error('Could not parse line: %s', line)
+                continue
+        return False
 
     def read(self):
         for (filename, byteoffset), line in self.data_reader:
