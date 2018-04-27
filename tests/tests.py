@@ -56,7 +56,8 @@ class TestMetricForwarder(fake_filesystem_unittest.TestCase):
         forwarder.request_session = FakeSession()
         forwarder.start()
         while len(forwarder.request_session.metrics_posted) < 10:
-            forwarder.forward()
+            if forwarder.should_send_batch():
+                forwarder.forward()
             time.sleep(0.1)
         self.shutdown.set()
         shutdown(forwarder)
@@ -71,13 +72,10 @@ class TestMetricForwarder(fake_filesystem_unittest.TestCase):
         forwarder.request_session = FakeSession()
         forwarder.start()
         while len(forwarder.request_session.metrics_posted) < 10:
-            print len(forwarder.request_session.metrics_posted)
-            forwarder.forward()
+            if forwarder.should_send_batch():
+                forwarder.forward()
             time.sleep(0.1)
-            print "Loop"
         self.shutdown.set()
-        print "HERE %s : " % forwarder.request_session.metrics_posted
-        print "also here %s : " % forwarder.request_session.invalid_posts
         shutdown(forwarder)
         # we only have 10 valid metrics.
         self.assertEqual(len(forwarder.request_session.metrics_posted), 10)
@@ -94,7 +92,7 @@ class TestMetricForwarder(fake_filesystem_unittest.TestCase):
         while len(forwarder.request_session.metrics_posted) < 10:
             if forwarder.should_send_batch():
                 forwarder.forward()
-            time.sleep(0.1)
+            time.sleep(1)
         self.shutdown.set()
         shutdown(forwarder)
         metrics_posted = forwarder.request_session.metrics_posted
@@ -118,8 +116,6 @@ class TestMetricForwarder(fake_filesystem_unittest.TestCase):
         shutdown(forwarder)
         metrics_posted = forwarder.request_session.metrics_posted
         invalid_posts = forwarder.request_session.invalid_posts
-        #print "HERE %s : " % metrics_posted
-        #print "also here %s : " % invalid_posts
         self.assertFalse(forwarder.request_session.is_called)
         self.assertEqual(len(metrics_posted), 0)
         self.assertEqual(len(invalid_posts), 0)
@@ -139,8 +135,6 @@ class TestMetricForwarder(fake_filesystem_unittest.TestCase):
         shutdown(forwarder)
         metrics_posted = forwarder.request_session.metrics_posted
         invalid_posts = forwarder.request_session.invalid_posts
-        #print "HERE %s : " % metrics_posted
-        #print "also here invalid %s : " % invalid_posts
         self.assertFalse(forwarder.request_session.is_called)
         self.assertEqual(len(metrics_posted), 1)
         self.assertEqual(len(invalid_posts), 0)

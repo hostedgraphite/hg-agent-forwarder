@@ -97,7 +97,7 @@ class MetricForwarder(threading.Thread):
         size is reached.
         '''
         now = time.time()
-        if (now - self.batch_time) > self.batch_timeout and self.spool_reader.cotentCounter:
+        if (now - self.batch_time) > self.batch_timeout and self.batch_size != 0:
             return True
         elif self.batch_size > self.max_batch_size:
             return True
@@ -187,19 +187,6 @@ class SpoolReader(object):
                                                 skip_to_end=False,
                                                 offsets=progresses)
 
-    def cotentCounter(self):
-        counter =0
-        for (_, _), line in self.data_reader:
-            line_byte_len = len(bytes(line))
-            if counter > 0:
-                return True
-            try:
-                #print "HERE %s " % line
-                content+=1
-            except ValueError:
-                logging.error('Could not parse line: %s', line)
-                continue
-        return False
 
     def read(self):
         for (filename, byteoffset), line in self.data_reader:
