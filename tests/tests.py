@@ -71,9 +71,13 @@ class TestMetricForwarder(fake_filesystem_unittest.TestCase):
         forwarder.request_session = FakeSession()
         forwarder.start()
         while len(forwarder.request_session.metrics_posted) < 10:
+            print len(forwarder.request_session.metrics_posted)
             forwarder.forward()
             time.sleep(0.1)
+            print "Loop"
         self.shutdown.set()
+        print "HERE %s : " % forwarder.request_session.metrics_posted
+        print "also here %s : " % forwarder.request_session.invalid_posts
         shutdown(forwarder)
         # we only have 10 valid metrics.
         self.assertEqual(len(forwarder.request_session.metrics_posted), 10)
@@ -82,7 +86,7 @@ class TestMetricForwarder(fake_filesystem_unittest.TestCase):
     @patch('hg_agent_forwarder.forwarder.time.sleep')
     def test_post_failure(self, sleep):
         sleep.return_value = True
-        filename = write_spool()
+        filename = write_spool(size =10)
         forwarder = MetricForwarder(self.config, self.shutdown)
         forwarder.request_session = FakeSession()
         forwarder.request_session.should_fail = True
@@ -95,11 +99,9 @@ class TestMetricForwarder(fake_filesystem_unittest.TestCase):
         shutdown(forwarder)
         metrics_posted = forwarder.request_session.metrics_posted
         invalid_posts = forwarder.request_session.invalid_posts
-    #    print "HERE %s : " % metrics_posted
-        #print "also here %s : " % invalid_posts
         self.assertTrue(forwarder.request_session.is_called)
         self.assertEqual(len(metrics_posted), 10)
-        self.assertEqual(len(invalid_posts), 1)
+        self.assertEqual(len(invalid_posts), 10)
         self.assertIn(invalid_posts[0], metrics_posted)
         self.remove_spool(filename)
 
