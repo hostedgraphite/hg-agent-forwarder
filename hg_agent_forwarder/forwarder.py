@@ -32,7 +32,6 @@ class MetricForwarder(threading.Thread):
         self.url = config.get('endpoint_url',
                               'https://agentapi.hostedgraphite.com/api/v1/sink')
         self.api_key = self.config.get('api_key')
-        self.should_send_empty = config.get('should_send_empty', False)
         self.progress = self.load_progress_file()
         self.shutdown_e = shutdown_e
         self.spool_reader = SpoolReader('/var/opt/hg-agent/spool/*.spool.*',
@@ -61,9 +60,7 @@ class MetricForwarder(threading.Thread):
                         break
                     datapoint = Datapoint(line, self.api_key)
                     if datapoint.validate():
-                        logging.error("WE try append %s " + self.should_send_empty)
-                        if self.should_send_empty:
-                            self.extend_batch(datapoint)
+                        self.extend_batch(datapoint)
                     else:
                         logging.error("Invalid line in spool.")
                         # invalid somehow, pass
@@ -130,7 +127,6 @@ class MetricForwarder(threading.Thread):
                                             data=self.batch,
                                             stream=False,
                                             timeout=self.request_timeout)
-            logging.error("HERE %s ", req.status_code)
             if req.status_code == 429:
                 logging.info("Metric forwarding limits hit \
                              please contact support.")
@@ -200,7 +196,8 @@ class SpoolReader(object):
             # + 1 for newline '\n'
             self.progresses[filename] = byteoffset + line_byte_len + 1
             try:
-                yield line
+                if len(line) > 0:
+                    yield line
             except ValueError:
                 logging.error('Could not parse line: %s', line)
                 continue
