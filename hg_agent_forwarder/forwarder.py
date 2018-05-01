@@ -196,7 +196,7 @@ class SpoolReader(object):
             # + 1 for newline '\n'
             self.progresses[filename] = byteoffset + line_byte_len + 1
             try:
-                if len(line) > 0:
+                if len(line) > 2:
                     yield line
             except ValueError:
                 logging.error('Could not parse line: %s', line)
