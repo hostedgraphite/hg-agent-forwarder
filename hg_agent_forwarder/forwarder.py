@@ -30,7 +30,7 @@ class MetricForwarder(threading.Thread):
         # the interpreter.
         self.daemon = True
         self.url = config.get('endpoint_url',
-                              'https://agentapi.hostedgraphite.com/api/v1/sink')
+                              'https://staging4.hostedgraphite.com/api/v1/sink')
         self.api_key = self.config.get('api_key')
         self.progress = self.load_progress_file()
         self.shutdown_e = shutdown_e
