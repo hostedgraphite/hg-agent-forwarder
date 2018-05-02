@@ -20,6 +20,9 @@ def write_spool(set_ts=None, empty=False, size=10):
         filename = '/var/opt/hg-agent/spool/test.spool.%d' % set_ts
     f = open(filename, 'a+')
     if empty == True:
+        for _ in range(size):
+            line = "\n "
+            f.write(line)
         f.close()
         return filename
 
