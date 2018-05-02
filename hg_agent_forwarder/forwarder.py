@@ -30,7 +30,7 @@ class MetricForwarder(threading.Thread):
         # the interpreter.
         self.daemon = True
         self.url = config.get('endpoint_url',
-                              'https://staging4.hostedgraphite.com/api/v1/sink')
+                              'https://agentapi.hostedgraphite.com/api/v1/sink')
         self.api_key = self.config.get('api_key')
         self.progress = self.load_progress_file()
         self.shutdown_e = shutdown_e
@@ -87,7 +87,10 @@ class MetricForwarder(threading.Thread):
             pass
         else:
             metric_str = "%s %s %s" % (metric, value, ts)
-            self.batch = "%s\n%s" % (self.batch, metric_str)
+            if self.batch_size == 0:
+                self.batch = metric_str
+            else:
+                self.batch = "%s\n%s" % (self.batch, metric_str)
             self.batch_size += 1
 
     def should_send_batch(self):
