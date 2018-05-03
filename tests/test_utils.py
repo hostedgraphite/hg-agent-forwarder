@@ -12,14 +12,21 @@ def reciever_run_shutdown(receiver, s_time):
     receiver.shutdown()
 
 
-def write_spool(set_ts=None):
+def write_spool(set_ts=None, empty=False, size=10):
     # create spool file with 10 valid metrics lines in it.
     if not set_ts:
         filename = '/var/opt/hg-agent/spool/test.spool.%d' % time.time()
     else:
         filename = '/var/opt/hg-agent/spool/test.spool.%d' % set_ts
     f = open(filename, 'a+')
-    for _ in range(10):
+    if empty == True:
+        for _ in range(size):
+            line = "\n "
+            f.write(line)
+        f.close()
+        return filename
+
+    for _ in range(size):
         metric = 'metric.%s' % random.choice(['foo', 'bar', 'baz'])
         value = str(random.choice(range(0, 2000)))
         line = "%s %s %s\n" % (metric, value, time.time())
@@ -131,11 +138,13 @@ class FakeSession:
     def post(self, url, data=None, stream=False, timeout=None):
         if self.should_fail and not self.is_called:
             self.is_called = True
-            self.invalid_posts.append(data)
+            for line in data.strip("\n").split("\n"):
+                self.invalid_posts.append(line)
             raise Exception
         elif self.should_fail and self.is_called:
             pass
-        self.metrics_posted.append(data)
+        for line in data.strip("\n").split("\n"):
+            self.metrics_posted.append(line)
         return Resp()
 
 

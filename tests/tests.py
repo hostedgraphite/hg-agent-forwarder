@@ -56,7 +56,8 @@ class TestMetricForwarder(fake_filesystem_unittest.TestCase):
         forwarder.request_session = FakeSession()
         forwarder.start()
         while len(forwarder.request_session.metrics_posted) < 10:
-            forwarder.forward()
+            if forwarder.should_send_batch():
+                forwarder.forward()
             time.sleep(0.1)
         self.shutdown.set()
         shutdown(forwarder)
@@ -71,7 +72,8 @@ class TestMetricForwarder(fake_filesystem_unittest.TestCase):
         forwarder.request_session = FakeSession()
         forwarder.start()
         while len(forwarder.request_session.metrics_posted) < 10:
-            forwarder.forward()
+            if forwarder.should_send_batch():
+                forwarder.forward()
             time.sleep(0.1)
         self.shutdown.set()
         shutdown(forwarder)
@@ -82,23 +84,60 @@ class TestMetricForwarder(fake_filesystem_unittest.TestCase):
     @patch('hg_agent_forwarder.forwarder.time.sleep')
     def test_post_failure(self, sleep):
         sleep.return_value = True
-        filename = write_spool()
+        filename = write_spool(size =10)
         forwarder = MetricForwarder(self.config, self.shutdown)
         forwarder.request_session = FakeSession()
         forwarder.request_session.should_fail = True
         forwarder.start()
         while len(forwarder.request_session.metrics_posted) < 10:
+            if forwarder.should_send_batch():
+                forwarder.forward()
+            time.sleep(1)
+        self.shutdown.set()
+        shutdown(forwarder)
+        metrics_posted = forwarder.request_session.metrics_posted
+        invalid_posts = forwarder.request_session.invalid_posts
+        self.assertTrue(forwarder.request_session.is_called)
+        self.assertEqual(len(metrics_posted), 10)
+        self.assertEqual(len(invalid_posts), 10)
+        self.assertIn(invalid_posts[0], metrics_posted)
+        self.remove_spool(filename)
+
+    @patch('hg_agent_forwarder.forwarder.time.sleep')
+    def test_empty_post(self, sleep):
+        filename = write_spool(empty=True)
+        forwarder = MetricForwarder(self.config, self.shutdown)
+        forwarder.request_session = FakeSession()
+        forwarder.start()
+        if forwarder.should_send_batch():
             forwarder.forward()
+        time.sleep(0.1)
+        self.shutdown.set()
+        shutdown(forwarder)
+        metrics_posted = forwarder.request_session.metrics_posted
+        invalid_posts = forwarder.request_session.invalid_posts
+        self.assertFalse(forwarder.request_session.is_called)
+        self.assertEqual(len(metrics_posted), 0)
+        self.assertEqual(len(invalid_posts), 0)
+        self.remove_spool(filename)
+
+    @patch('hg_agent_forwarder.forwarder.time.sleep')
+    def test_one_content_post(self, sleep):
+        filename = write_spool(size=1)
+        forwarder = MetricForwarder(self.config, self.shutdown)
+        forwarder.request_session = FakeSession()
+        forwarder.start()
+        while len(forwarder.request_session.metrics_posted) < 1:
+            if forwarder.should_send_batch():
+                forwarder.forward()
             time.sleep(0.1)
         self.shutdown.set()
         shutdown(forwarder)
         metrics_posted = forwarder.request_session.metrics_posted
         invalid_posts = forwarder.request_session.invalid_posts
-
-        self.assertTrue(forwarder.request_session.is_called)
-        self.assertEqual(len(metrics_posted), 10)
-        self.assertEqual(len(invalid_posts), 1)
-        self.assertIn(invalid_posts[0], metrics_posted)
+        self.assertFalse(forwarder.request_session.is_called)
+        self.assertEqual(len(metrics_posted), 1)
+        self.assertEqual(len(invalid_posts), 0)
         self.remove_spool(filename)
 
     def write_invalid_line(self, filename):
@@ -160,6 +199,7 @@ class TestMetricReceiverTcp(TestReceiver):
         setup_tcp_receiver(tcp_receiver)
         time.sleep(2)
         tcp_receiver._sock.set_metric(self.test_metric, 20)
+        tcp_receiver._sock.set_metric(self.test_metric, 22)
         time.sleep(2)
         reciever_run_shutdown(tcp_receiver, 2)
         self.assertEqual(len(my_spool._spools), 1)
@@ -309,7 +349,6 @@ class TestEndtoEnd(fake_filesystem_unittest.TestCase):
         setup_tcp_receiver(tcp_receiver)
         forwarder = MetricForwarder(self.config, self.shutdown)
         forwarder.request_session = FakeSession()
-
         forwarder.start()
         while len(forwarder.request_session.metrics_posted) < 1:
             if forwarder.should_send_batch():

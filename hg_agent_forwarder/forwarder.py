@@ -86,7 +86,10 @@ class MetricForwarder(threading.Thread):
             pass
         else:
             metric_str = "%s %s %s" % (metric, value, ts)
-            self.batch = "%s\n%s" % (self.batch, metric_str)
+            if self.batch_size == 0:
+                self.batch = metric_str
+            else:
+                self.batch = "%s\n%s" % (self.batch, metric_str)
             self.batch_size += 1
 
     def should_send_batch(self):
@@ -97,7 +100,7 @@ class MetricForwarder(threading.Thread):
         size is reached.
         '''
         now = time.time()
-        if (now - self.batch_time) > self.batch_timeout:
+        if (now - self.batch_time) > self.batch_timeout and self.batch_size != 0:
             return True
         elif self.batch_size > self.max_batch_size:
             return True
@@ -195,7 +198,8 @@ class SpoolReader(object):
             # + 1 for newline '\n'
             self.progresses[filename] = byteoffset + line_byte_len + 1
             try:
-                yield line
+                if len(line) > 1:
+                    yield line
             except ValueError:
                 logging.error('Could not parse line: %s', line)
                 continue
