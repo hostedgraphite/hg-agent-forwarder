@@ -1,6 +1,6 @@
 version: 2.0
 jobs:
-  test:
+  build:
     steps:
       - checkout
       - run: tox
