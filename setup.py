@@ -17,6 +17,7 @@ test_requirements = [
     'httmock',
     'coverage',
     'mock',
+    'pyfakefs',
 ]
 
 dependency_links = [
