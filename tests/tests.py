@@ -26,6 +26,8 @@ class TestReceiver(fake_filesystem_unittest.TestCase):
                        "udp": {"port": 2003, "host": "localhost"},
                        }
         self.test_metric = "foo.bar.baz"
+        self.test_metric_tagged = "foo.bar.baz;tag0=val0"
+        self.test_metric_openmetrics = 'foo_bar_baz{tag0="val0"}'
 
 
 def shutdown(f):
@@ -254,6 +256,22 @@ class TestMetricReceiverTcp(TestReceiver):
         for ts in all_spools:
             self.assertIsInstance(ts, int)
         self.assertEqual(len(all_spools), 10)
+
+    def test_tcp_tagged_dp(self):
+        tcp_receiver = MetricReceiverTcp(self.config)
+        my_spool = tcp_receiver.spool
+        tcp_receiver._sock.set_metric(self.test_metric_tagged, 20)
+        setup_tcp_receiver(tcp_receiver)
+        reciever_run_shutdown(tcp_receiver, 1)
+        self.assertEqual(len(my_spool._spools), 1)
+
+    def test_tcp_openmetrics_dp(self):
+        tcp_receiver = MetricReceiverTcp(self.config)
+        my_spool = tcp_receiver.spool
+        tcp_receiver._sock.set_metric(self.test_metric_openmetrics, 20)
+        setup_tcp_receiver(tcp_receiver)
+        reciever_run_shutdown(tcp_receiver, 1)
+        self.assertEqual(len(my_spool._spools), 1)
 
     @patch('hg_agent_forwarder.utils.fcntl.flock')
     def test_too_many_spools_rotate_bytes(self, fl):

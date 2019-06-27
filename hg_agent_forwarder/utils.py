@@ -18,7 +18,13 @@ class Datapoint(object):
     Strips api_keys to allow agent-forwarder config
     to be used instead.
     '''
-    regex_metric = "[a-zA-Z0-9:\._$%#=\-\[\]]+"
+
+    # Separating out metric name & additional tag classes
+    # Support Carbon and OpenMetrics tags
+    metric_class = "a-zA-Z0-9:\._$%#=\-\[\]"
+    tag_class = ";{}\","
+    regex_metric = "[%s%s]+" % (metric_class, tag_class)
+
     regex_value = "-?[0-9]+(\.[0-9]+)?([eE][-,+]?[0-9]+)?"
     regex_ts = "(-1|[0-9]+(.[0-9]+)?)?"
     regex_line = "^(?P<metric>%s)\s+(?P<value>%s)(?P<timestamp>\s+%s)?$" % (
@@ -45,6 +51,8 @@ class Datapoint(object):
         if not match:
             return False
 
+        # Note that we leave it to the upstream service to do further parsing &
+        # validation of tagged `metric` here: we merely "pass through"
         self.metric = match.group("metric")
         self.value = float(match.group("value"))
         self.timestamp = int(time.time())
