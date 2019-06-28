@@ -18,14 +18,23 @@ from hg_agent_forwarder.receiver import MetricReceiverUdp, MetricReceiverTcp
 class TestReceiver(fake_filesystem_unittest.TestCase):
     def setUp(self):
         self.setUpPyfakefs()
-        self.fs.CreateDirectory('/var/opt/hg-agent')
-        self.fs.CreateDirectory('/var/opt/hg-agent/spool/')
+        self.fs.create_dir('/var/opt/hg-agent/spool/')
 
         self.config = {"tcp": {"port": 2003, "host": "localhost"},
                        "apikey": API_KEY,
                        "udp": {"port": 2003, "host": "localhost"},
                        }
         self.test_metric = "foo.bar.baz"
+        self.test_metric_tagged = "foo.bar.baz;tag0=val0"
+        self.test_metric_openmetrics = 'foo_bar_baz{tag0="val0"}'
+
+        # fcntl.flock() does not play nicely with pyfakefs
+        # We don't need the locking it does in tests
+        self.fcntl_patch = patch('hg_agent_forwarder.utils.fcntl.flock')
+        self.fcntl_patch.start()
+
+    def tearDown(self):
+        self.fcntl_patch.stop()
 
 
 def shutdown(f):
@@ -39,8 +48,7 @@ def shutdown(f):
 class TestMetricForwarder(fake_filesystem_unittest.TestCase):
     def setUp(self):
         self.setUpPyfakefs()
-        self.fs.CreateDirectory('/var/opt/hg-agent')
-        self.fs.CreateDirectory('/var/opt/hg-agent/spool/')
+        self.fs.create_dir('/var/opt/hg-agent/spool/')
         self.config = {'endpoint_url': "www.test.yolo",
                        'api_key': API_KEY,
                        'spoolglob': "/var/opt/hg-agent/spool/*.spool.*",
@@ -49,6 +57,11 @@ class TestMetricForwarder(fake_filesystem_unittest.TestCase):
                        'interval': 1
                        }
         self.shutdown = threading.Event()
+
+        # fcntl.flock() does not play nicely with pyfakefs
+        # We don't need the locking it does in tests
+        self.fcntl_patch = patch('hg_agent_forwarder.utils.fcntl.flock')
+        self.fcntl_patch.start()
 
     def test_processing_metrics(self):
         filename = write_spool()
@@ -153,6 +166,7 @@ class TestMetricForwarder(fake_filesystem_unittest.TestCase):
         # ensure we clean up spools even if a test fails.
         for f in glob.glob('tests/test_spool.spool.*'):
             os.remove(f)
+        self.fcntl_patch.stop()
 
 
 class TestMetricReceiverTcp(TestReceiver):
@@ -255,9 +269,23 @@ class TestMetricReceiverTcp(TestReceiver):
             self.assertIsInstance(ts, int)
         self.assertEqual(len(all_spools), 10)
 
-    @patch('hg_agent_forwarder.utils.fcntl.flock')
-    def test_too_many_spools_rotate_bytes(self, fl):
-        fl.return_value = True
+    def test_tcp_tagged_dp(self):
+        tcp_receiver = MetricReceiverTcp(self.config)
+        my_spool = tcp_receiver.spool
+        tcp_receiver._sock.set_metric(self.test_metric_tagged, 20)
+        setup_tcp_receiver(tcp_receiver)
+        reciever_run_shutdown(tcp_receiver, 1)
+        self.assertEqual(len(my_spool._spools), 1)
+
+    def test_tcp_openmetrics_dp(self):
+        tcp_receiver = MetricReceiverTcp(self.config)
+        my_spool = tcp_receiver.spool
+        tcp_receiver._sock.set_metric(self.test_metric_openmetrics, 20)
+        setup_tcp_receiver(tcp_receiver)
+        reciever_run_shutdown(tcp_receiver, 1)
+        self.assertEqual(len(my_spool._spools), 1)
+
+    def test_too_many_spools_rotate_bytes(self):
         conf = self.config
         conf['spool_rotatesize'] = 10
         tcp_receiver = MetricReceiverTcp(conf)
@@ -338,6 +366,14 @@ class TestEndtoEnd(fake_filesystem_unittest.TestCase):
         self.mocked_poll.poll.return_value = mocked_poll
         self.mocked_poll.unregister.return_value = True
         self.shutdown = threading.Event()
+
+        # fcntl.flock() does not play nicely with pyfakefs
+        # We don't need the locking it does in tests
+        self.fcntl_patch = patch('hg_agent_forwarder.utils.fcntl.flock')
+        self.fcntl_patch.start()
+
+    def tearDown(self):
+        self.fcntl_patch.stop()
 
     def test_tcp_single_dp_spool(self):
         tcp_config_sock = patch('hg_agent_forwarder.receiver.socket')
