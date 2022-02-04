@@ -1,17 +1,18 @@
+import glob
 import os
-import time
 import random
 import threading
-import glob
+import time
+
+from mock import patch
 from pyfakefs import fake_filesystem_unittest
-from tests.test_utils import (MockedTcpRecvSocket, API_KEY,
-                        mocked_poll, FakeSession,  FakeSpool,
-                        MockedUdpRecvSocket, reciever_run_shutdown,
-                        write_spool, setup_tcp_receiver)
-from mock import patch, Mock
+
 from hg_agent_forwarder.forwarder import MetricForwarder
 from hg_agent_forwarder.receiver import MetricReceiverUdp, MetricReceiverTcp
-
+from tests.test_utils import (MockedTcpRecvSocket, API_KEY,
+                              mocked_poll, FakeSession, FakeSpool,
+                              MockedUdpRecvSocket, reciever_run_shutdown,
+                              write_spool, setup_tcp_receiver)
 
 
 class TestReceiver(fake_filesystem_unittest.TestCase):
@@ -96,7 +97,7 @@ class TestMetricForwarder(fake_filesystem_unittest.TestCase):
     @patch('hg_agent_forwarder.forwarder.time.sleep')
     def test_post_failure(self, sleep):
         sleep.return_value = True
-        filename = write_spool(size =10)
+        filename = write_spool(size=10)
         forwarder = MetricForwarder(self.config, self.shutdown)
         forwarder.request_session = FakeSession()
         forwarder.request_session.should_fail = True
@@ -375,7 +376,7 @@ class TestEndtoEnd(fake_filesystem_unittest.TestCase):
         self.fcntl_patch.stop()
 
     def test_tcp_single_dp_spool(self):
-        tcp_config_sock = patch('hg_agent_forwarder.receiver.socket')
+        tcp_config_sock = patch('hg_agent_forwarder.receiver.socket')  # noqa
         tcp_mock_sock = self.tcp_config_sock.start()
         tcp_mock_sock.socket.return_value = MockedTcpRecvSocket()
         tcp_receiver = MetricReceiverTcp(self.config)

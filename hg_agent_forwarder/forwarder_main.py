@@ -1,7 +1,8 @@
-import time
 import logging
-from utils import get_args, init_log, create_shutdown_event, load_config
+import time
+
 from forwarder import MetricForwarder
+from utils import get_args, init_log, create_shutdown_event, load_config
 
 
 def main():
@@ -19,6 +20,7 @@ def main():
     logging.info("Metric forwarder shutting down")
     metric_forwarder.shutdown()
     logging.info("Metric forwarder finished.")
+
 
 if __name__ == '__main__':
     main()

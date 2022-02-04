@@ -1,23 +1,26 @@
-import threading
-import os
-import logging
-import json
-import time
-import random
-import requests
-import multitail2
 import errno
+import json
+import logging
+import os
+import random
 import tempfile
+import threading
+import time
+
+import multitail2
+import requests
 from requests.auth import HTTPBasicAuth
+
 from utils import Datapoint
 
 
 class MetricForwarder(threading.Thread):
-    '''
+    """
     Simple metric data forwarder.
     Forwards data over http, has a simple exponential
     backoff in case of connectivity issues.
-    '''
+    """
+
     def __init__(self, config, shutdown_e, *args, **kwargs):
         super(MetricForwarder, self).__init__(*args, **kwargs)
         self.config = config
@@ -66,13 +69,13 @@ class MetricForwarder(threading.Thread):
                         continue
                     if self.should_send_batch():
                         self.forward()
-            except Exception as e:
+            except Exception:
                 continue
 
     def extend_batch(self, data):
-        '''
+        """
         Add a metric to the current metric batch.
-        '''
+        """
         if not self.batch_time:
             self.batch_time = time.time()
 
@@ -92,12 +95,12 @@ class MetricForwarder(threading.Thread):
             self.batch_size += 1
 
     def should_send_batch(self):
-        '''
+        """
         Check to see if we should send the
         current batch.
         True if timeout is > 10 or batch
         size is reached.
-        '''
+        """
         now = time.time()
         if (now - self.batch_time) > self.batch_timeout and self.batch_size != 0:
             return True
@@ -115,13 +118,11 @@ class MetricForwarder(threading.Thread):
                 # Back off exponentially up to 6 times before levelling
                 # out. E.g. for a retry_interval of 300, that'll result
                 # in retries at 300, 600, 1200, 2400, 4800, 9600, 9600, ...
-                interval = (2**backoff) * self.retry_interval
+                interval = (2 ** backoff) * self.retry_interval
                 if backoff < 5:
                     backoff += 1
-                logging.error('Metric sending failed, retry in %s ms',
-                              interval)
+                logging.error('Metric sending failed, retry in %s ms', interval)
                 time.sleep(interval / 1000.0)
-
 
     def send_data(self):
         try:
@@ -130,8 +131,7 @@ class MetricForwarder(threading.Thread):
                                             stream=False,
                                             timeout=self.request_timeout)
             if req.status_code == 429:
-                logging.info("Metric forwarding limits hit \
-                             please contact support.")
+                logging.info("Metric forwarding limits hit please contact support.")
 
             # Ensure exception info is logged for HTTP errors.
             req.raise_for_status()
@@ -146,7 +146,7 @@ class MetricForwarder(threading.Thread):
         return True
 
     def shutdown(self):
-        '''Shut down this forwarder.
+        """Shut down this forwarder.
 
         Deals with the forwarder's progress thread: we want to be certain that
         the progress thread has a chance to finish what it's doing if it is
@@ -155,7 +155,7 @@ class MetricForwarder(threading.Thread):
         everything else is done anyway.
 
         NB: called from outside the forwarder's thread of execution.
-        '''
+        """
 
         while self.progress_writer.is_alive():
             self.progress_writer.join(timeout=0.1)
@@ -171,17 +171,15 @@ class MetricForwarder(threading.Thread):
                 progress = json.load(open(progressfile))
 
         except (ValueError, IOError, OSError) as e:
-            logging.error(
-                'Error loading progress file on startup; '
-                'spool files will be read from end: %s', e
-            )
+            logging.error('Error loading progress file on startup; spool files will be read from end: %s', e)
         return progress
 
 
 class SpoolReader(object):
-    '''
+    """
     Tails files matching a glob and yields lines from them
-    '''
+    """
+
     def __init__(self, spoolglob, progresses=None, shutdown=None):
         self.progresses = progresses or {}
         self.shutdown_e = shutdown
@@ -205,8 +203,9 @@ class SpoolReader(object):
 
 
 class ProgressWriter(threading.Thread):
-    '''
-    '''
+    """
+    """
+
     def __init__(self, config, spool_reader, shutdown_e, *args, **kwargs):
         super(ProgressWriter, self).__init__(*args, **kwargs)
         self.shutdown_e = shutdown_e
@@ -220,14 +219,13 @@ class ProgressWriter(threading.Thread):
             try:
                 self.atomicwrite()
             except Exception as e:
-                logging.error("Unhandled exception while writing progress: %s",
-                              e)
+                logging.error("Unhandled exception while writing progress: %s", e)
             time.sleep(self.interval)
 
     def atomicwrite(self):
         try:
             content = json.dumps(self.spool_reader.progresses)
-        except:
+        except Exception:
             content = {}
         try:
             os.makedirs('/var/opt/hg-agent/spool/', 0o755)

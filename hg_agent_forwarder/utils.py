@@ -1,34 +1,34 @@
-import re
-import os
-import time
 import argparse
-import logging
-import tempfile
 import fcntl
-import threading
-import signal
-import yaml
 import glob
+import logging
+import os
+import re
+import signal
+import tempfile
+import threading
+import time
+
+import yaml
 
 
 class Datapoint(object):
-    '''
+    """
     Datapoint for valid metric name,
     value and timestamp combination.
     Strips api_keys to allow agent-forwarder config
     to be used instead.
-    '''
+    """
 
     # Separating out metric name & additional tag classes
     # Support Carbon and OpenMetrics tags
-    metric_class = "a-zA-Z0-9:\._$%#=\-\[\]"
+    metric_class = r"a-zA-Z0-9:\._$%#=\-\[\]"
     tag_class = ";{}\","
     regex_metric = "[%s%s]+" % (metric_class, tag_class)
 
-    regex_value = "-?[0-9]+(\.[0-9]+)?([eE][-,+]?[0-9]+)?"
+    regex_value = r"-?[0-9]+(\.[0-9]+)?([eE][-,+]?[0-9]+)?"
     regex_ts = "(-1|[0-9]+(.[0-9]+)?)?"
-    regex_line = "^(?P<metric>%s)\s+(?P<value>%s)(?P<timestamp>\s+%s)?$" % (
-                 regex_metric, regex_value, regex_ts)
+    regex_line = r"^(?P<metric>%s)\s+(?P<value>%s)(?P<timestamp>\s+%s)?$" % (regex_metric, regex_value, regex_ts)
 
     formatre = re.compile(regex_line)
 
@@ -59,7 +59,7 @@ class Datapoint(object):
         timestamp = match.group("timestamp")
         try:
             self.timestamp = int(timestamp.strip())
-        except Exception as e:
+        except Exception:
             # catching any possible ts errors and
             # default back to time.time()
             pass
@@ -67,11 +67,11 @@ class Datapoint(object):
 
     def to_spool(self):
         return " ".join([self.metric, str(self.value),
-                        str(self.timestamp)]) + "\n"
+                         str(self.timestamp)]) + "\n"
 
 
 def get_args(argv=None):
-    '''Parse out and returns script args.'''
+    """Parse out and returns script args."""
     description = 'Metric forwarder for the Hosted Graphite agent.'
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument('--debug', action='store_true', default=False,
@@ -86,7 +86,7 @@ def get_args(argv=None):
 
 
 def init_log(name, debug):
-    '''Configure logging.'''
+    """Configure logging."""
     logger = logging.getLogger()
     if debug:
         logger.setLevel(logging.DEBUG)
@@ -99,7 +99,7 @@ def init_log(name, debug):
 
 
 def create_shutdown_event():
-    '''Setup signal handlers and return a threading.Event.'''
+    """Setup signal handlers and return a threading.Event."""
     shutdown = threading.Event()
 
     def sighandler(number, frame):
@@ -112,9 +112,10 @@ def create_shutdown_event():
 
 
 class SpoolFile:
-    '''
+    """
     Represents a spool file.
-    '''
+    """
+
     def __init__(self, fh, path):
         self.fh = fh
         self.path = path
@@ -123,9 +124,10 @@ class SpoolFile:
 
 
 class Spool:
-    '''
+    """
     Spool file management.
-    '''
+    """
+
     def __init__(self, config):
         self._config = config
         self._spools = {}
@@ -162,7 +164,6 @@ class Spool:
 
     def flush_spools(self):
         now = time.time()
-        to_del = []
         if not self._all_spools:
             self._all_spools = self.lookup_spools()
 
@@ -216,7 +217,7 @@ class LoadFileError(Exception):
 
 
 def load_file(name):
-    '''Load a file from disk or raise a `LoadFileError` exception.'''
+    """Load a file from disk or raise a `LoadFileError` exception."""
     try:
         with open(name) as f:
             data = f.read()
@@ -226,8 +227,8 @@ def load_file(name):
 
 
 def load_config(source, filename):
-    '''Return, parsed and validated, the config dict from `filename` or `None`.
-    Log stating `source` of the error if there's a problem.'''
+    """Return, parsed and validated, the config dict from `filename` or `None`.
+    Log stating `source` of the error if there's a problem."""
     try:
         data = load_file(filename)
         agent_config = yaml.load(data)

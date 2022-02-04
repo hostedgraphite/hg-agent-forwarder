@@ -1,7 +1,8 @@
 import logging
 import time
-from utils import get_args, init_log, create_shutdown_event, load_config
+
 from receiver import MetricReceiverUdp, MetricReceiverTcp
+from utils import get_args, init_log, create_shutdown_event, load_config
 
 
 def main():
