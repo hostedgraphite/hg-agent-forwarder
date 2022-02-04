@@ -1,5 +1,4 @@
 import time
-import select
 from mock import create_autospec, Mock
 import random
 

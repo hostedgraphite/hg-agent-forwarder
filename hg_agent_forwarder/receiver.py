@@ -30,9 +30,8 @@ class MetricReceiverUdp(threading.Thread):
         try:
             udp_socket.bind((host, port))
             logging.info("Listening on %s:%d/udp", host, port)
-        except socket.error, (errno, e):
-            logging.error("Could not bind to %s:%d/udp: %s",
-                          host, port, e)
+        except socket.error as e:
+            logging.error("Could not bind to %s:%d/udp: %s", host, port, e)
             raise SystemExit(1)
         return udp_socket
 
@@ -44,7 +43,8 @@ class MetricReceiverUdp(threading.Thread):
                 data, addr = self._sock.recvfrom(8192)
             except socket.timeout:
                 pass
-            except socket.error, (num, msg):
+            except socket.error as e:
+                (num, _) = e
                 if num not in [4, 11]:
                     raise
             except TypeError as e:
@@ -97,9 +97,8 @@ class MetricReceiverTcp(threading.Thread):
             sock.bind((host, port))
             sock.listen(int(50))
             logging.info("Listening on %s:%d/tcp", host, port)
-        except socket.error, (errno, e):
-            logging.error("Could not bind to %s:%d/tcp: %s",
-                          host, port, e)
+        except socket.error as e:
+            logging.error("Could not bind to %s:%d/tcp: %s", host, port, e)
             raise SystemExit(1)
         return sock
 
@@ -115,16 +114,16 @@ class MetricReceiverTcp(threading.Thread):
             for (fd, event) in events:
                 try:
                     self._handle(fd, event)
-                except Exception, ex:
+                except Exception:
                     try:
                         self._close(fd)
-                    except Exception, ex:
+                    except Exception:
                         pass
 
             for fd in timeout_fds:
                 try:
                     self._close(fd)
-                except Exception, ex:
+                except Exception:
                     pass
 
     def _get_timeout_fds(self):
@@ -134,7 +133,7 @@ class MetricReceiverTcp(threading.Thread):
         '''
         timeout = float(60.0)
         timeout_fds = []
-        for (fd, (_, (_, _), last_event_ts)) in self._connections.iteritems():
+        for (fd, (_, (_, _), last_event_ts)) in self._connections.items():
             if time.time() - last_event_ts > timeout:
                 timeout_fds.append(fd)
         return timeout_fds
@@ -172,9 +171,8 @@ class MetricReceiverTcp(threading.Thread):
                         line = line.strip() # Handle CRLF as well as lone LF
                         try:
                             self._process(line)
-                        except Exception, ex:
-                            logging.exception("Failed to process line %s: %s",
-                                              repr(line), ex)
+                        except Exception as ex:
+                            logging.exception("Failed to process line %s: %s", repr(line), ex)
 
                     if len(self._buffers[fd]) > 1024:
                         # More than 1kb in the buffer and still no newline?

@@ -1,5 +1,4 @@
 import threading
-import Queue
 import os
 import logging
 import json
@@ -169,7 +168,7 @@ class MetricForwarder(threading.Thread):
             progressfile = progress_cfg.get('path',
                                             '/var/opt/hg-agent/spool/progress')
             if progressfile is not None:
-                progress = json.load(file(progressfile))
+                progress = json.load(open(progressfile))
 
         except (ValueError, IOError, OSError) as e:
             logging.error(
@@ -181,7 +180,7 @@ class MetricForwarder(threading.Thread):
 
 class SpoolReader(object):
     '''
-    Tails files matching a glob.  yields lines from them.
+    Tails files matching a glob and yields lines from them
     '''
     def __init__(self, spoolglob, progresses=None, shutdown=None):
         self.progresses = progresses or {}
@@ -194,7 +193,7 @@ class SpoolReader(object):
         for (filename, byteoffset), line in self.data_reader:
             if self.shutdown_e.is_set():
                 break
-            line_byte_len = len(bytes(line))
+            line_byte_len = len(bytes(line.encode()))
             # + 1 for newline '\n'
             self.progresses[filename] = byteoffset + line_byte_len + 1
             try:
@@ -231,12 +230,12 @@ class ProgressWriter(threading.Thread):
         except:
             content = {}
         try:
-            os.makedirs('/var/opt/hg-agent/spool/', 0755)
+            os.makedirs('/var/opt/hg-agent/spool/', 0o755)
         except OSError as err:
             if err.errno != errno.EEXIST:
                 raise
         fd, temp_path = tempfile.mkstemp(dir='/var/opt/hg-agent/spool/')
         with os.fdopen(fd, 'w') as fh:
             fh.write(content)
-        os.chmod(temp_path, 0644)
+        os.chmod(temp_path, 0o644)
         os.rename(temp_path, "%s/%s" % (self.final_path, "progress"))

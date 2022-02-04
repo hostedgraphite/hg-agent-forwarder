@@ -4,8 +4,7 @@ import random
 import threading
 import glob
 from pyfakefs import fake_filesystem_unittest
-import unittest
-from test_utils import (MockedTcpRecvSocket, API_KEY,
+from tests.test_utils import (MockedTcpRecvSocket, API_KEY,
                         mocked_poll, FakeSession,  FakeSpool,
                         MockedUdpRecvSocket, reciever_run_shutdown,
                         write_spool, setup_tcp_receiver)
