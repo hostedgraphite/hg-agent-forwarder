@@ -191,7 +191,7 @@ class SpoolReader(object):
         for (filename, byteoffset), line in self.data_reader:
             if self.shutdown_e.is_set():
                 break
-            line_byte_len = len(bytes(line.encode()))
+            line_byte_len = len(line.encode())
             # + 1 for newline '\n'
             self.progresses[filename] = byteoffset + line_byte_len + 1
             try:
@@ -203,9 +203,6 @@ class SpoolReader(object):
 
 
 class ProgressWriter(threading.Thread):
-    """
-    """
-
     def __init__(self, config, spool_reader, shutdown_e, *args, **kwargs):
         super(ProgressWriter, self).__init__(*args, **kwargs)
         self.shutdown_e = shutdown_e

@@ -376,7 +376,7 @@ class TestEndtoEnd(fake_filesystem_unittest.TestCase):
         self.fcntl_patch.stop()
 
     def test_tcp_single_dp_spool(self):
-        tcp_config_sock = patch('hg_agent_forwarder.receiver.socket')  # noqa
+        tcp_config_sock = patch('hg_agent_forwarder.receiver.socket')  # noqa: F841
         tcp_mock_sock = self.tcp_config_sock.start()
         tcp_mock_sock.socket.return_value = MockedTcpRecvSocket()
         tcp_receiver = MetricReceiverTcp(self.config)
