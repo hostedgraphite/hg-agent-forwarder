@@ -1,8 +1,8 @@
 import logging
 import time
 
-from receiver import MetricReceiverUdp, MetricReceiverTcp
-from utils import get_args, init_log, create_shutdown_event, load_config
+from hg_agent_forwarder.receiver import MetricReceiverUdp, MetricReceiverTcp
+from hg_agent_forwarder.utils import get_args, init_log, create_shutdown_event, load_config
 
 
 def main():

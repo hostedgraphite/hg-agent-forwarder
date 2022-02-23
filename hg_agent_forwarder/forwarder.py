@@ -11,7 +11,7 @@ import multitail2
 import requests
 from requests.auth import HTTPBasicAuth
 
-from utils import Datapoint
+from hg_agent_forwarder.utils import Datapoint
 
 
 class MetricForwarder(threading.Thread):

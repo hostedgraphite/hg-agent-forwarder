@@ -1,8 +1,8 @@
 import logging
 import time
 
-from forwarder import MetricForwarder
-from utils import get_args, init_log, create_shutdown_event, load_config
+from hg_agent_forwarder.forwarder import MetricForwarder
+from hg_agent_forwarder.utils import get_args, init_log, create_shutdown_event, load_config
 
 
 def main():

@@ -4,7 +4,7 @@ import socket
 import threading
 import time
 
-from utils import Datapoint, Spool
+from hg_agent_forwarder.utils import Datapoint, Spool
 
 
 class MetricReceiverUdp(threading.Thread):
