@@ -231,7 +231,7 @@ def load_config(source, filename):
     Log stating `source` of the error if there's a problem."""
     try:
         data = load_file(filename)
-        agent_config = yaml.load(data)
+        agent_config = yaml.safe_load(data)
     except LoadFileError as e:
         logging.error('%s loading %s: %s', source, filename, e)
         return None
