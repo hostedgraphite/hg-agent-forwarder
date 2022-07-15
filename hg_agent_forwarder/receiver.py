@@ -148,7 +148,7 @@ class MetricReceiverTcp(threading.Thread):
                 # Incoming data on the main listening socket means this there
                 # is a new connection waiting.
                 (sock, addr) = self._sock.accept()
-                logging.info("Received connection from %s" % addr)
+                logging.info("Received connection from %s" % str(addr))
                 this_fileno = sock.fileno()
                 self._connections[this_fileno] = (sock, addr, time.time())
                 self._buffers[this_fileno] = ""
@@ -170,7 +170,6 @@ class MetricReceiverTcp(threading.Thread):
                         # replace the buffer without the
                         # line we just read.
                         this_buf = self._buffers[fd]
-                        logging.info("Reading Line %s" % this_buf)
                         try:
                             (line, self._buffers[fd]) = this_buf.split("\n", 1)
                             line = line.strip()  # Handle CRLF as well as lone LF
