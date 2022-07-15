@@ -41,7 +41,7 @@ class MetricReceiverUdp(threading.Thread):
             data, addr = None, None
             try:
                 data, addr = self._sock.recvfrom(8192)
-                data = data.decode()
+                data = data if isinstance(data, str) else data.decode()
             except socket.timeout:
                 pass
             except socket.error as e:
@@ -133,7 +133,7 @@ class MetricReceiverTcp(threading.Thread):
         """
         timeout = float(60.0)
         timeout_fds = []
-        for (fd, (_, (_, _), last_event_ts)) in self._connections.items():
+        for (fd, (_, (_, _), last_event_ts)) in list(self._connections.items()):
             if time.time() - last_event_ts > timeout:
                 timeout_fds.append(fd)
         return timeout_fds
@@ -157,7 +157,7 @@ class MetricReceiverTcp(threading.Thread):
             else:
                 (sock, addr, _) = self._connections[fd]
                 buf = sock.recv(4096)
-                buf = buf.decode()
+                buf = buf if isinstance(buf, str) else buf.decode()
                 self._connections[fd] = (sock, addr, time.time())
                 if len(buf) == 0:
                     logging.info("Empty buffer")
@@ -209,5 +209,5 @@ class MetricReceiverTcp(threading.Thread):
         del self._buffers[fd]
 
     def shutdown(self):
-        [self._close(fd) for fd in self._connections.keys()]
+        [self._close(fd) for fd in list(self._connections.keys())]
         self._keeprunning = False
