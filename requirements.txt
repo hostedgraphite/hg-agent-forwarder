@@ -6,7 +6,6 @@ idna==3.3
 importlib-metadata==4.8.3
 importlib-resources==5.4.0
 jsonschema==3.2.0
-pyfakefs==4.5.4
 pyrsistent==0.18.0
 PyYAML==5.4.1
 requests==2.27.1
