@@ -41,6 +41,7 @@ class MetricReceiverUdp(threading.Thread):
             data, addr = None, None
             try:
                 data, addr = self._sock.recvfrom(8192)
+                data = data.decode()
             except socket.timeout:
                 pass
             except socket.error as e:
@@ -147,6 +148,7 @@ class MetricReceiverTcp(threading.Thread):
                 # Incoming data on the main listening socket means this there
                 # is a new connection waiting.
                 (sock, addr) = self._sock.accept()
+                logging.info("Received connection from %s" % addr)
                 this_fileno = sock.fileno()
                 self._connections[this_fileno] = (sock, addr, time.time())
                 self._buffers[this_fileno] = ""
@@ -155,8 +157,10 @@ class MetricReceiverTcp(threading.Thread):
             else:
                 (sock, addr, _) = self._connections[fd]
                 buf = sock.recv(4096)
+                buf = buf.decode()
                 self._connections[fd] = (sock, addr, time.time())
                 if len(buf) == 0:
+                    logging.info("Empty buffer")
                     self._close(fd)
                 else:
                     # Extend the existing buffer for this connection
@@ -166,9 +170,10 @@ class MetricReceiverTcp(threading.Thread):
                         # replace the buffer without the
                         # line we just read.
                         this_buf = self._buffers[fd]
-                        (line, self._buffers[fd]) = this_buf.split("\n", 1)
-                        line = line.strip()  # Handle CRLF as well as lone LF
+                        logging.info("Reading Line %s" % this_buf)
                         try:
+                            (line, self._buffers[fd]) = this_buf.split("\n", 1)
+                            line = line.strip()  # Handle CRLF as well as lone LF
                             self._process(line)
                         except Exception as ex:
                             logging.exception("Failed to process line %s: %s", repr(line), ex)
