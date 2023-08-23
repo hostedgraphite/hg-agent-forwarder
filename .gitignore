@@ -20,3 +20,4 @@ node_modules
 package-lock.json
 .coverage
 hg_agent_forwarder.egg-info/
+.vscode

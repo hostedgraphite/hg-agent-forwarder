@@ -1,16 +1,17 @@
+import logging
+import select
 import socket
 import threading
-import select
-import logging
 import time
-from utils import Datapoint, Spool
+
+from hg_agent_forwarder.utils import Datapoint, Spool
 
 
 class MetricReceiverUdp(threading.Thread):
     def __init__(self, config, *args, **kwargs):
-        '''
+        """
         UDP endpoint for metrics.
-        '''
+        """
         super(MetricReceiverUdp, self).__init__(*args, **kwargs)
         self.config = config
         self.name = "UDP Metric Receiver"
@@ -22,7 +23,6 @@ class MetricReceiverUdp(threading.Thread):
     def config_udp_socket(self):
         udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 32768000)
-        bufsize = udp_socket.getsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF)
         udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         udp_socket.settimeout(0.1)
         host = self.config.get('udp_host', 'localhost')
@@ -30,9 +30,8 @@ class MetricReceiverUdp(threading.Thread):
         try:
             udp_socket.bind((host, port))
             logging.info("Listening on %s:%d/udp", host, port)
-        except socket.error, (errno, e):
-            logging.error("Could not bind to %s:%d/udp: %s",
-                          host, port, e)
+        except socket.error as e:
+            logging.error("Could not bind to %s:%d/udp: %s", host, port, e)
             raise SystemExit(1)
         return udp_socket
 
@@ -42,9 +41,11 @@ class MetricReceiverUdp(threading.Thread):
             data, addr = None, None
             try:
                 data, addr = self._sock.recvfrom(8192)
+                data = data if isinstance(data, str) else data.decode()
             except socket.timeout:
                 pass
-            except socket.error, (num, msg):
+            except socket.error as e:
+                (num, _) = e
                 if num not in [4, 11]:
                     raise
             except TypeError as e:
@@ -52,7 +53,7 @@ class MetricReceiverUdp(threading.Thread):
 
             if data:
                 for line in data.strip("\n").split("\n"):
-                    line = line.strip() # Handle CRLF as well as lone LF
+                    line = line.strip()  # Handle CRLF as well as lone LF
                     try:
                         datapoint = Datapoint(line, self.api_key)
                         datapoint.key_strip()
@@ -60,18 +61,17 @@ class MetricReceiverUdp(threading.Thread):
                             logging.debug("Putting datapoint.metric %s",
                                           datapoint.metric)
                             self.spool.write(datapoint)
-                    except Exception as ex:
-                        logging.exception("Failed to process line %s:",
-                                          repr(line))
+                    except Exception:
+                        logging.exception("Failed to process line %s:", repr(line))
 
     def shutdown(self):
         self._keeprunning = False
 
 
 class MetricReceiverTcp(threading.Thread):
-    '''
+    """
     TCP endpoint for metrics.
-    '''
+    """
 
     def __init__(self, config, *args, **kwargs):
         super(MetricReceiverTcp, self).__init__(*args, **kwargs)
@@ -97,9 +97,8 @@ class MetricReceiverTcp(threading.Thread):
             sock.bind((host, port))
             sock.listen(int(50))
             logging.info("Listening on %s:%d/tcp", host, port)
-        except socket.error, (errno, e):
-            logging.error("Could not bind to %s:%d/tcp: %s",
-                          host, port, e)
+        except socket.error as e:
+            logging.error("Could not bind to %s:%d/tcp: %s", host, port, e)
             raise SystemExit(1)
         return sock
 
@@ -115,40 +114,41 @@ class MetricReceiverTcp(threading.Thread):
             for (fd, event) in events:
                 try:
                     self._handle(fd, event)
-                except Exception, ex:
+                except Exception:
                     try:
                         self._close(fd)
-                    except Exception, ex:
+                    except Exception:
                         pass
 
             for fd in timeout_fds:
                 try:
                     self._close(fd)
-                except Exception, ex:
+                except Exception:
                     pass
 
     def _get_timeout_fds(self):
-        '''
+        """
         Returns a list of file descriptors which are exceeding the inactivity
         timeout in the config.
-        '''
+        """
         timeout = float(60.0)
         timeout_fds = []
-        for (fd, (_, (_, _), last_event_ts)) in self._connections.iteritems():
+        for (fd, (_, (_, _), last_event_ts)) in list(self._connections.items()):
             if time.time() - last_event_ts > timeout:
                 timeout_fds.append(fd)
         return timeout_fds
 
     def _handle(self, fd, event):
-        '''
+        """
         Called once for each event on a file descriptor.
         Takes care of line buffered reading.
-        '''
+        """
         if event & select.POLLIN:
             if fd == self._sock.fileno():
                 # Incoming data on the main listening socket means this there
                 # is a new connection waiting.
                 (sock, addr) = self._sock.accept()
+                logging.info("Received connection from %s" % str(addr))
                 this_fileno = sock.fileno()
                 self._connections[this_fileno] = (sock, addr, time.time())
                 self._buffers[this_fileno] = ""
@@ -157,8 +157,10 @@ class MetricReceiverTcp(threading.Thread):
             else:
                 (sock, addr, _) = self._connections[fd]
                 buf = sock.recv(4096)
+                buf = buf if isinstance(buf, str) else buf.decode()
                 self._connections[fd] = (sock, addr, time.time())
                 if len(buf) == 0:
+                    logging.info("Empty buffer")
                     self._close(fd)
                 else:
                     # Extend the existing buffer for this connection
@@ -168,13 +170,12 @@ class MetricReceiverTcp(threading.Thread):
                         # replace the buffer without the
                         # line we just read.
                         this_buf = self._buffers[fd]
-                        (line, self._buffers[fd]) = this_buf.split("\n", 1)
-                        line = line.strip() # Handle CRLF as well as lone LF
                         try:
+                            (line, self._buffers[fd]) = this_buf.split("\n", 1)
+                            line = line.strip()  # Handle CRLF as well as lone LF
                             self._process(line)
-                        except Exception, ex:
-                            logging.exception("Failed to process line %s: %s",
-                                              repr(line), ex)
+                        except Exception as ex:
+                            logging.exception("Failed to process line %s: %s", repr(line), ex)
 
                     if len(self._buffers[fd]) > 1024:
                         # More than 1kb in the buffer and still no newline?
@@ -185,9 +186,9 @@ class MetricReceiverTcp(threading.Thread):
             self._close(fd)
 
     def _process(self, line):
-        '''
+        """
         Process a line and write it to a spool.
-        '''
+        """
         datapoint = Datapoint(line, self.api_key)
         datapoint.key_strip()
         if datapoint.validate():
@@ -208,5 +209,5 @@ class MetricReceiverTcp(threading.Thread):
         del self._buffers[fd]
 
     def shutdown(self):
-        [self._close(fd) for fd in self._connections.keys()]
+        [self._close(fd) for fd in list(self._connections.keys())]
         self._keeprunning = False

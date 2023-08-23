@@ -33,10 +33,10 @@ clean-test:
 	rm -fr htmlcov/
 
 lint:
-	flake8 bin/* hg_agent_forwarder tests
+	flake8
 
 test:
-	python setup.py test
+	tox
 
 coverage:
 	coverage run --source hg_agent_forwarder -m unittest discover -s tests
@@ -44,12 +44,12 @@ coverage:
 	coverage html
 
 release: clean
-	python setup.py --command-packages=stdeb.command sdist_dsc bdist_deb
+	python3 setup.py --command-packages=stdeb.command sdist_dsc bdist_deb
 
 dist: clean
-	python setup.py sdist
-	python setup.py bdist_wheel
+	python3 setup.py sdist
+	python3 setup.py bdist_wheel
 	ls -l dist
 
 install: clean
-	python setup.py install
+	pip install -r requirements.txt

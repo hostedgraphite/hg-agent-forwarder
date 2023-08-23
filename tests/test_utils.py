@@ -1,8 +1,7 @@
-import time
-import select
-from mock import create_autospec, Mock
 import random
+import time
 
+from mock import Mock
 
 API_KEY = "12345678-5555-2222-aaaa-661ff1afb5c1"
 
@@ -19,7 +18,7 @@ def write_spool(set_ts=None, empty=False, size=10):
     else:
         filename = '/var/opt/hg-agent/spool/test.spool.%d' % set_ts
     f = open(filename, 'a+')
-    if empty == True:
+    if empty is True:
         for _ in range(size):
             line = "\n "
             f.write(line)
@@ -37,8 +36,8 @@ def write_spool(set_ts=None, empty=False, size=10):
 
 def setup_tcp_receiver(tcp_receiver):
     tcp_receiver._connections[1] = (tcp_receiver._sock,
-                                   ('localhost', 8000),
-                                   time.time())
+                                    ('localhost', 8000),
+                                    time.time())
     tcp_receiver._buffers[1] = ""
     tcp_receiver.start()
 
@@ -154,7 +153,7 @@ class FakeSpool:
 
     def write(self, data):
         data_string = " ".join([data.metric, str(data.value),
-                               str(data.timestamp)]) + "\n"
+                                str(data.timestamp)]) + "\n"
         if data_string == data.to_spool():
             self.metrics.append(data)
 

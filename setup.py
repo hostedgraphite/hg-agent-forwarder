@@ -1,46 +1,28 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 from setuptools import setup, find_packages
 
 requirements = [
-    'jsonschema==2.6.0',
-    'requests==2.22.0',
-    'rfc3987==1.3.7',  # For 'uri' format validation in jsonschema
-    'supervisor==3.3.1',
-    'PyYAML==5.1.1',
-    'wheel',
-    'multitail2',
-]
-
-test_requirements = [
-    'httmock',
-    'coverage',
-    'mock',
-    'pyfakefs',
-]
-
-dependency_links = [
+    'jsonschema<=3.2.0',
+    'requests<=2.27.1',
+    'supervisor<=4.2.4',
+    'PyYAML<=6.0.1',
+    'multitail2 @ git+ssh://git@github.com/metricfire/python-multitail2.git@master',
 ]
 
 setup(
     name='hg-agent-forwarder',
-    version='1.1.0',
+    version='2.0.0',
     description='Metric forwarder script for the Hosted Graphite agent.',
     long_description='Metric forwarder script for the Hosted Graphite agent.',
     author='Metricfire',
     author_email='maintainer@metricfire.com',
     url='https://github.com/metricfire/hg-agent-forwarder',
     packages=find_packages(),
-    package_data={},
-    scripts=[],
     install_requires=requirements,
-    dependency_links=dependency_links,
-    tests_require=test_requirements,
     test_suite='tests',
     include_package_data=True,
     zip_safe=False,
     keywords='hg-agent-forwarder',
-    classifiers=[
-    ],
 )
