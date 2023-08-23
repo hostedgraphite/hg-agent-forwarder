@@ -5,7 +5,7 @@ from setuptools import setup, find_packages
 
 requirements = [
     'jsonschema<=3.2.0',
-    'requests<=2.27.1',
+    'requests<=2.31.0',
     'supervisor<=4.2.4',
     'PyYAML<=6.0.1',
     'multitail2 @ git+ssh://git@github.com/metricfire/python-multitail2.git@master',

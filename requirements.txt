@@ -8,7 +8,7 @@ importlib-resources==5.4.0
 jsonschema==3.2.0
 pyrsistent==0.18.0
 PyYAML==6.0.1
-requests==2.27.1
+requests==2.31.0
 six==1.16.0
 supervisor==4.2.4
 typing_extensions==4.0.1
