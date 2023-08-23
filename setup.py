@@ -7,8 +7,8 @@ requirements = [
     'jsonschema<=3.2.0',
     'requests<=2.27.1',
     'supervisor<=4.2.4',
-    'PyYAML<=5.4.1',
-    'multitail2 @ git+ssh://git@github.com/metricfire/python-multitail2.git@v2.0.0',
+    'PyYAML<=6.0.1',
+    'multitail2 @ git+ssh://git@github.com/metricfire/python-multitail2.git@master',
 ]
 
 setup(
