@@ -12,6 +12,6 @@ requests==2.27.1
 six==1.16.0
 supervisor==4.2.4
 typing_extensions==4.0.1
-urllib3==1.26.8
+urllib3==1.26.17
 zipp==3.6.0
 multitail2 @ git+ssh://git@github.com/metricfire/python-multitail2.git@master
